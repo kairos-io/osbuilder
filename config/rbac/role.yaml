@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - build.c3os-x.io
+  resources:
+  - osartifacts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - build.c3os-x.io
+  resources:
+  - osartifacts/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - build.c3os-x.io
+  resources:
+  - osartifacts/status
+  verbs:
+  - get
+  - patch
+  - update

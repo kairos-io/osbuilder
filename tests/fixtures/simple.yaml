@@ -1,0 +1,7 @@
+apiVersion: build.c3os-x.io/v1alpha1
+kind: OSArtifact
+metadata:
+  name: hello-c3os
+spec:
+  imageName: "quay.io/c3os/c3os:opensuse-latest"
+  iso: true

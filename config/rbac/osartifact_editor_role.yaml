@@ -1,0 +1,24 @@
+# permissions for end users to edit osartifacts.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: osartifact-editor-role
+rules:
+- apiGroups:
+  - build.c3os-x.io
+  resources:
+  - osartifacts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - build.c3os-x.io
+  resources:
+  - osartifacts/status
+  verbs:
+  - get

@@ -1,0 +1,60 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.0
+  creationTimestamp: null
+  name: osartifacts.build.c3os-x.io
+spec:
+  group: build.c3os-x.io
+  names:
+    kind: OSArtifact
+    listKind: OSArtifactList
+    plural: osartifacts
+    singular: osartifact
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: OSArtifact is the Schema for the osartifacts API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: OSArtifactSpec defines the desired state of OSArtifact
+            properties:
+              cloudConfig:
+                type: string
+              imageName:
+                description: Foo is an example field of OSArtifact. Edit osartifact_types.go
+                  to remove/update
+                type: string
+              iso:
+                type: boolean
+            type: object
+          status:
+            description: OSArtifactStatus defines the observed state of OSArtifact
+            properties:
+              phase:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file'
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
