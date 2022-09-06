@@ -38,9 +38,9 @@ import (
 // OSArtifactReconciler reconciles a OSArtifact object
 type OSArtifactReconciler struct {
 	client.Client
-	Scheme                   *runtime.Scheme
-	clientSet                *kubernetes.Clientset
-	ServingImage, BuildImage string
+	Scheme                              *runtime.Scheme
+	clientSet                           *kubernetes.Clientset
+	ServingImage, BuildImage, ToolImage string
 }
 
 func genOwner(artifact buildv1alpha1.OSArtifact) []metav1.OwnerReference {

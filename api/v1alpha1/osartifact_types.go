@@ -35,7 +35,30 @@ type OSArtifactSpec struct {
 	CloudConfig string `json:"cloudConfig,omitempty"`
 	GRUBConfig  string `json:"grubConfig,omitempty"`
 
-	PullFromKube bool `json:"pullFromKube,omitempty"`
+	Bundles     []string `json:"bundles,omitempty"`
+	PullOptions Pull     `json:"pull,omitempty"`
+	PushOptions Push     `json:"push,omitempty"`
+}
+
+type Push struct {
+	Push                         bool               `json:"push,omitempty"`
+	ImageName                    string             `json:"imageName,omitempty"`
+	ContainerRegistryCredentials *SecretKeySelector `json:"containerRegistryCredentials,omitempty"`
+}
+
+type Pull struct {
+	ContainerRegistryCredentials *SecretKeySelector `json:"containerRegistryCredentials,omitempty"`
+}
+type LocalObjectReference struct {
+	Name string `json:"name"`
+}
+
+type SecretKeySelector struct {
+	LocalObjectReference `json:",inline"`
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+	// +optional
+	Key string `json:"key,omitempty"`
 }
 
 // OSArtifactStatus defines the observed state of OSArtifact

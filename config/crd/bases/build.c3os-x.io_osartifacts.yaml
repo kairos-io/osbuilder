@@ -35,7 +35,15 @@ spec:
           spec:
             description: OSArtifactSpec defines the desired state of OSArtifact
             properties:
+              bundles:
+                items:
+                  type: string
+                type: array
               cloudConfig:
+                description: 'TODO: treat cloudconfig as a secret, and take a secretRef
+                  where to store it (optionally)'
+                type: string
+              grubConfig:
                 type: string
               imageName:
                 description: Foo is an example field of OSArtifact. Edit osartifact_types.go
@@ -43,6 +51,38 @@ spec:
                 type: string
               iso:
                 type: boolean
+              pull:
+                properties:
+                  containerRegistryCredentials:
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                type: object
+              push:
+                properties:
+                  containerRegistryCredentials:
+                    properties:
+                      key:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  imageName:
+                    type: string
+                  push:
+                    type: boolean
+                type: object
             type: object
           status:
             description: OSArtifactStatus defines the observed state of OSArtifact

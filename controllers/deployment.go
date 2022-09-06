@@ -31,6 +31,78 @@ func genDeploymentLabel(s string) map[string]string {
 		"osbuild": "workload" + s,
 	}
 }
+
+// TODO: Handle registry auth
+// TODO: This shells out, but needs ENV_VAR with key refs mapping
+func unpackContainer(id, containerImage, pullImage string, pullOptions buildv1alpha1.Pull) v1.Container {
+	return v1.Container{
+		ImagePullPolicy: v1.PullAlways,
+		Name:            fmt.Sprintf("pull-image-%s", id),
+		Image:           containerImage,
+		Command:         []string{"/bin/bash", "-cxe"},
+		Args: []string{
+			fmt.Sprintf(
+				"luet util unpack %s %s",
+				pullImage,
+				"/rootfs",
+			),
+		},
+		VolumeMounts: []v1.VolumeMount{
+			{
+				Name:      "rootfs",
+				MountPath: "/rootfs",
+			},
+		},
+	}
+}
+
+func createImageContainer(containerImage string, pushOptions buildv1alpha1.Push) v1.Container {
+	return v1.Container{
+		ImagePullPolicy: v1.PullAlways,
+		Name:            "create-image",
+		Image:           containerImage,
+		Command:         []string{"/bin/bash", "-cxe"},
+		Args: []string{
+			fmt.Sprintf(
+				"tar -czvpf test.tar -C /rootfs . && luet util pack %s test.tar image.tar && mv image.tar /public",
+				pushOptions.ImageName,
+			),
+		},
+		VolumeMounts: []v1.VolumeMount{
+			{
+				Name:      "rootfs",
+				MountPath: "/rootfs",
+			},
+			{
+				Name:      "public",
+				MountPath: "/public",
+			},
+		},
+	}
+}
+
+func pushImageContainer(containerImage string, pushOptions buildv1alpha1.Push) v1.Container {
+	return v1.Container{
+		ImagePullPolicy: v1.PullAlways,
+		Name:            "push-image",
+		Image:           containerImage,
+		Command:         []string{"/bin/bash", "-cxe"},
+		Args: []string{
+			fmt.Sprintf(
+				"skopeo /public/image.tar %s",
+				pushOptions.ImageName,
+			),
+		},
+		VolumeMounts: []v1.VolumeMount{
+
+			{
+				Name:      "public",
+				MountPath: "/public",
+			},
+		},
+	}
+}
+
 func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) *appsv1.Deployment {
 	objMeta := metav1.ObjectMeta{
 		Name:            artifact.Name,
@@ -38,8 +110,11 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		OwnerReferences: genOwner(artifact),
 	}
 
+	pushImage := artifact.Spec.PushOptions.Push
+
 	privileged := false
 	serviceAccount := false
+
 	buildIsoContainer := v1.Container{
 		ImagePullPolicy: v1.PullAlways,
 		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
@@ -48,9 +123,8 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			fmt.Sprintf(
-				"elemental --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay %s --output /public",
+				"elemental --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay --output /public dir:/rootfs",
 				artifact.Name,
-				artifact.Spec.ImageName,
 			),
 		},
 		VolumeMounts: []v1.VolumeMount{
@@ -64,35 +138,10 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 				SubPath:   "config",
 			},
 			{
-				Name:      "grub",
+				Name:      "config",
 				MountPath: "/iso/iso-overlay/boot/grub2/grub.cfg",
 				SubPath:   "grub.cfg",
 			},
-		},
-	}
-
-	if artifact.Spec.PullFromKube {
-		buildIsoContainer.Args = []string{
-			fmt.Sprintf(
-				"elemental --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay --output /public /rootfs",
-				artifact.Name,
-			),
-		}
-	}
-
-	pullContainer := v1.Container{
-		ImagePullPolicy: v1.PullAlways,
-		Name:            "build-iso",
-		Image:           artifact.Spec.ImageName,
-		Command:         []string{"/bin/bash", "-cxe"},
-		Args: []string{
-			fmt.Sprintf(
-				"rsync -aqAX --exclude='mnt' --exclude='proc' --exclude='sys' --exclude='dev' --exclude='tmp' %s %s",
-				"/",
-				"/rootfs",
-			),
-		},
-		VolumeMounts: []v1.VolumeMount{
 			{
 				Name:      "rootfs",
 				MountPath: "/rootfs",
@@ -134,11 +183,19 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		},
 	}
 
-	pod.InitContainers = []v1.Container{buildIsoContainer}
-	if artifact.Spec.PullFromKube {
-		// pull first
-		pod.InitContainers = append([]v1.Container{pullContainer}, pod.InitContainers...)
+	pod.InitContainers = []v1.Container{unpackContainer("baseimage", r.ToolImage, artifact.Spec.ImageName, artifact.Spec.PullOptions)}
+
+	for i, bundle := range artifact.Spec.Bundles {
+		pod.InitContainers = append(pod.InitContainers, unpackContainer(fmt.Sprint(i), r.ToolImage, bundle, artifact.Spec.PullOptions))
 	}
+
+	pod.InitContainers = append(pod.InitContainers, buildIsoContainer)
+
+	if pushImage {
+		pod.InitContainers = append(pod.InitContainers, createImageContainer(r.ToolImage, artifact.Spec.PushOptions))
+
+	}
+
 	pod.Containers = []v1.Container{servingContainer}
 
 	deploymentLabels := genDeploymentLabel(artifact.Name)
