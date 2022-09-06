@@ -36,12 +36,18 @@ spec:
             description: OSArtifactSpec defines the desired state of OSArtifact
             properties:
               cloudConfig:
+                description: 'TODO: treat cloudconfig as a secret, and take a secretRef
+                  where to store it (optionally)'
+                type: string
+              grubConfig:
                 type: string
               imageName:
                 description: Foo is an example field of OSArtifact. Edit osartifact_types.go
                   to remove/update
                 type: string
               iso:
+                type: boolean
+              pullFromKube:
                 type: boolean
             type: object
           status:
