@@ -81,23 +81,24 @@ func createImageContainer(containerImage string, pushOptions buildv1alpha1.Push)
 	}
 }
 
-func pushImageContainer(containerImage string, pushOptions buildv1alpha1.Push) v1.Container {
+func osReleaseContainer(containerImage string) v1.Container {
 	return v1.Container{
 		ImagePullPolicy: v1.PullAlways,
-		Name:            "push-image",
+		Name:            "os-release",
 		Image:           containerImage,
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
-			fmt.Sprintf(
-				"skopeo /public/image.tar %s",
-				pushOptions.ImageName,
-			),
+			"cp -rfv /etc/os-release /rootfs/etc/os-release",
 		},
 		VolumeMounts: []v1.VolumeMount{
-
 			{
-				Name:      "public",
-				MountPath: "/public",
+				Name:      "config",
+				MountPath: "/etc/os-release",
+				SubPath:   "os-release",
+			},
+			{
+				Name:      "rootfs",
+				MountPath: "/rootfs",
 			},
 		},
 	}
@@ -187,6 +188,11 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 
 	for i, bundle := range artifact.Spec.Bundles {
 		pod.InitContainers = append(pod.InitContainers, unpackContainer(fmt.Sprint(i), r.ToolImage, bundle, artifact.Spec.PullOptions))
+	}
+
+	if artifact.Spec.OSRelease != "" {
+		pod.InitContainers = append(pod.InitContainers, osReleaseContainer(r.ToolImage))
+
 	}
 
 	pod.InitContainers = append(pod.InitContainers, buildIsoContainer)

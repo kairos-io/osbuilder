@@ -37,6 +37,7 @@ type OSArtifactSpec struct {
 
 	Bundles     []string `json:"bundles,omitempty"`
 	PullOptions Pull     `json:"pull,omitempty"`
+	OSRelease   string   `json:"osRelease,omitempty"`
 	PushOptions Push     `json:"push,omitempty"`
 }
 

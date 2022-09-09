@@ -32,7 +32,8 @@ func (r *OSArtifactReconciler) genConfigMap(artifact buildv1alpha1.OSArtifact) *
 			OwnerReferences: genOwner(artifact),
 		},
 		Data: map[string]string{
-			"config":   artifact.Spec.CloudConfig,
-			"grub.cfg": artifact.Spec.GRUBConfig,
+			"config":     artifact.Spec.CloudConfig,
+			"grub.cfg":   artifact.Spec.GRUBConfig,
+			"os-release": artifact.Spec.OSRelease,
 		}}
 }
