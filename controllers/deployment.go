@@ -120,7 +120,7 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		ImagePullPolicy: v1.PullAlways,
 		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
 		Name:            "build-iso",
-		Image:           r.BuildImage,
+		Image:           r.ToolImage,
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			fmt.Sprintf(

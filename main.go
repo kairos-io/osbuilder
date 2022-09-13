@@ -52,9 +52,8 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	var buildImage, serveImage, toolImage string
+	var serveImage, toolImage string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&buildImage, "build-image", "quay.io/costoolkit/elemental-cli:v0.0.15-ae4f000", "Build image.")
 	flag.StringVar(&serveImage, "serve-image", "nginx", "Serve image.")
 	// It needs luet inside
 	flag.StringVar(&toolImage, "tool-image", "quay.io/c3os/osbuilder-tools:latest", "Tool image.")
@@ -99,7 +98,6 @@ func main() {
 		Client:       mgr.GetClient(),
 		ServingImage: serveImage,
 		ToolImage:    toolImage,
-		BuildImage:   buildImage,
 		Scheme:       mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OSArtifact")
