@@ -124,7 +124,7 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			fmt.Sprintf(
-				"elemental --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay --output /public dir:/rootfs",
+				"/entrypoint.sh --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay --output /public dir:/rootfs",
 				artifact.Name,
 			),
 		},

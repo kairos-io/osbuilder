@@ -110,6 +110,7 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			logger.Error(err, "Failed while creating svc")
 			return ctrl.Result{}, err
 		}
+
 		return ctrl.Result{Requeue: true}, err
 	}
 	if err != nil {

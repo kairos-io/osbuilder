@@ -57,7 +57,7 @@ func main() {
 	flag.StringVar(&buildImage, "build-image", "quay.io/costoolkit/elemental-cli:v0.0.15-ae4f000", "Build image.")
 	flag.StringVar(&serveImage, "serve-image", "nginx", "Serve image.")
 	// It needs luet inside
-	flag.StringVar(&toolImage, "tool-image", "quay.io/c3os/core-alpine:v0.57.0", "Tool image.")
+	flag.StringVar(&toolImage, "tool-image", "quay.io/c3os/osbuilder-tools:latest", "Tool image.")
 
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
