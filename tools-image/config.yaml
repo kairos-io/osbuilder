@@ -1,0 +1,6 @@
+iso:
+  uefi:
+  - dir:/efi
+  image:
+  - dir:/efi
+  - dir:/grub2
