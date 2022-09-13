@@ -16,4 +16,5 @@ jobs:
         uses: actions/checkout@v2
       - name: Test
         run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make kind-e2e-tests
