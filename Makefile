@@ -172,6 +172,7 @@ $(LOCALBIN):
 
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
+GINKGO ?= $(LOCALBIN)/ginkgo
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
@@ -190,7 +191,8 @@ controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessar
 $(CONTROLLER_GEN): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
-deps-test: $(LOCALBIN)
+ginkgo: $(GINKGO) ## Download ginkgo locally if necessary.
+$(GINKGO): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
 
 .PHONY: envtest
@@ -269,9 +271,9 @@ test_deps:
 
 .PHONY: unit-tests
 unit-tests: test_deps
-	ginkgo -r -v  --covermode=atomic --coverprofile=coverage.out -p -r ./pkg/...
+	$(GINKGO) -r -v  --covermode=atomic --coverprofile=coverage.out -p -r ./pkg/...
 
 e2e-tests:
 	KUBE_VERSION=${KUBE_VERSION} $(ROOT_DIR)/script/test.sh
 
-kind-e2e-tests: kind-setup install undeploy-dev deploy-dev e2e-tests
+kind-e2e-tests: ginkgo kind-setup install undeploy-dev deploy-dev e2e-tests
