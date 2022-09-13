@@ -274,6 +274,6 @@ unit-tests: test_deps
 	$(GINKGO) -r -v  --covermode=atomic --coverprofile=coverage.out -p -r ./pkg/...
 
 e2e-tests:
-	KUBE_VERSION=${KUBE_VERSION} $(ROOT_DIR)/script/test.sh
+	GINKGO=$(GINKGO) KUBE_VERSION=${KUBE_VERSION} $(ROOT_DIR)/script/test.sh
 
 kind-e2e-tests: ginkgo kind-setup install undeploy-dev deploy-dev e2e-tests
