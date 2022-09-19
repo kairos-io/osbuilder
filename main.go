@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	buildv1alpha1 "github.com/c3os-io/osbuilder-operator/api/v1alpha1"
-	"github.com/c3os-io/osbuilder-operator/controllers"
+	buildv1alpha1 "github.com/kairos-io/osbuilder/api/v1alpha1"
+	"github.com/kairos-io/osbuilder/controllers"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -56,7 +56,7 @@ func main() {
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&serveImage, "serve-image", "nginx", "Serve image.")
 	// It needs luet inside
-	flag.StringVar(&toolImage, "tool-image", "quay.io/c3os/osbuilder-tools:latest", "Tool image.")
+	flag.StringVar(&toolImage, "tool-image", "quay.io/kairos/osbuilder-tools:latest", "Tool image.")
 
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -76,7 +76,7 @@ func main() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "98ca89ca.c3os-x.io",
+		LeaderElectionID:       "98ca89ca.kairos.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly

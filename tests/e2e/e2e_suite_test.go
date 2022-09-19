@@ -9,5 +9,5 @@ import (
 
 func TestE2e(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "c3os-operator e2e test Suite")
+	RunSpecs(t, "kairos-operator e2e test Suite")
 }

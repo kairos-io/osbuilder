@@ -1,4 +1,4 @@
-module github.com/c3os-io/osbuilder-operator
+module github.com/kairos-io/osbuilder
 
 go 1.18
 

@@ -1,19 +1,19 @@
-domain: c3os-x.io
+domain: kairos.io
 layout:
 - go.kubebuilder.io/v3
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: osartifactbuilder-operator
-repo: github.com/c3os-io/osbuilder-operator
+repo: github.com/kairos-io/osbuilder
 resources:
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: c3os-x.io
+  domain: kairos.io
   group: build
   kind: OSArtifact
-  path: github.com/c3os-io/osbuilder-operator/api/v1alpha1
+  path: github.com/kairos-io/osbuilder/api/v1alpha1
   version: v1alpha1
 version: "3"

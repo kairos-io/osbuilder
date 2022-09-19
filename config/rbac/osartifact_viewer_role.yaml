@@ -5,7 +5,7 @@ metadata:
   name: osartifact-viewer-role
 rules:
 - apiGroups:
-  - build.c3os-x.io
+  - build.kairos.io
   resources:
   - osartifacts
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - build.c3os-x.io
+  - build.kairos.io
   resources:
   - osartifacts/status
   verbs:

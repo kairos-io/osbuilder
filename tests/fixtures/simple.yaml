@@ -1,12 +1,12 @@
-apiVersion: build.c3os-x.io/v1alpha1
+apiVersion: build.kairos.io/v1alpha1
 kind: OSArtifact
 metadata:
-  name: hello-c3os
+  name: hello-kairos
 spec:
-  imageName: "quay.io/c3os/c3os:opensuse-latest"
+  imageName: "quay.io/kairos/core-opensuse:latest"
   iso: true
   bundles:
-  - quay.io/c3os/packages:goreleaser-utils-1.11.1
+  - quay.io/kairos/packages:goreleaser-utils-1.11.1
   grubConfig: |
           search --file --set=root /boot/kernel.xz
           set default=0

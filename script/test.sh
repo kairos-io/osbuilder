@@ -1,7 +1,7 @@
 #!/bin/bash
 
 KUBE_VERSION=${KUBE_VERSION:-v1.22.7}
-CLUSTER_NAME="${CLUSTER_NAME:-c3os-osbuilder-e2e}"
+CLUSTER_NAME="${CLUSTER_NAME:-kairos-osbuilder-e2e}"
 
 if ! kind get clusters | grep "$CLUSTER_NAME"; then
 cat << EOF > kind.config

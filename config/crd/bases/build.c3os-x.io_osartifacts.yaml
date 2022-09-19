@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.0
   creationTimestamp: null
-  name: osartifacts.build.c3os-x.io
+  name: osartifacts.build.kairos.io
 spec:
-  group: build.c3os-x.io
+  group: build.kairos.io
   names:
     kind: OSArtifact
     listKind: OSArtifactList

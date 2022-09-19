@@ -13,7 +13,7 @@ var _ = Describe("ISO build test", func() {
 	Context("registration", func() {
 
 		AfterEach(func() {
-			kubectl.New().Delete("osartifacts", "-n", "default", "hello-c3os")
+			kubectl.New().Delete("osartifacts", "-n", "default", "hello-kairos")
 		})
 
 		It("creates a simple iso", func() {
@@ -21,16 +21,16 @@ var _ = Describe("ISO build test", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(func() string {
-				b, _ := kubectl.GetData("default", "osartifacts", "hello-c3os", "jsonpath={.spec.imageName}")
+				b, _ := kubectl.GetData("default", "osartifacts", "hello-kairos", "jsonpath={.spec.imageName}")
 				return string(b)
-			}, 2*time.Minute, 2*time.Second).Should(Equal("quay.io/c3os/c3os:opensuse-latest"))
+			}, 2*time.Minute, 2*time.Second).Should(Equal("quay.io/kairos/kairos:opensuse-latest"))
 
 			Eventually(func() string {
-				b, _ := kubectl.GetData("default", "deployments", "hello-c3os", "jsonpath={.spec.template.metadata.labels.osbuild}")
+				b, _ := kubectl.GetData("default", "deployments", "hello-kairos", "jsonpath={.spec.template.metadata.labels.osbuild}")
 				return string(b)
-			}, 2*time.Minute, 2*time.Second).Should(Equal("workloadhello-c3os"))
+			}, 2*time.Minute, 2*time.Second).Should(Equal("workloadhello-kairos"))
 			Eventually(func() string {
-				b, _ := kubectl.GetData("default", "deployments", "hello-c3os", "jsonpath={.spec.status.unavailableReplicas}")
+				b, _ := kubectl.GetData("default", "deployments", "hello-kairos", "jsonpath={.spec.status.unavailableReplicas}")
 				return string(b)
 			}, 15*time.Minute, 2*time.Second).ShouldNot(Equal("1"))
 		})

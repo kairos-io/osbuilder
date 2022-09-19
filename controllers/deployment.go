@@ -19,7 +19,7 @@ package controllers
 import (
 	"fmt"
 
-	buildv1alpha1 "github.com/c3os-io/osbuilder-operator/api/v1alpha1"
+	buildv1alpha1 "github.com/kairos-io/osbuilder/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 

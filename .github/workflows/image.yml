@@ -18,7 +18,7 @@ jobs:
       - name: Prepare
         id: prep
         run: |
-          DOCKER_IMAGE=quay.io/c3os/osbuilder
+          DOCKER_IMAGE=quay.io/kairos/osbuilder
           VERSION=latest
           SHORTREF=${GITHUB_SHA::8}
           # If this is git tag, use the tag name as a docker tag

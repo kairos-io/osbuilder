@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	buildv1alpha1 "github.com/c3os-io/osbuilder-operator/api/v1alpha1"
+	buildv1alpha1 "github.com/kairos-io/osbuilder/api/v1alpha1"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,9 +53,9 @@ func genOwner(artifact buildv1alpha1.OSArtifact) []metav1.OwnerReference {
 	}
 }
 
-//+kubebuilder:rbac:groups=build.c3os-x.io,resources=osartifacts,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=build.c3os-x.io,resources=osartifacts/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=build.c3os-x.io,resources=osartifacts/finalizers,verbs=update
+//+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

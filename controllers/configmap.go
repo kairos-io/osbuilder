@@ -17,7 +17,7 @@ limitations under the License.
 package controllers
 
 import (
-	buildv1alpha1 "github.com/c3os-io/osbuilder-operator/api/v1alpha1"
+	buildv1alpha1 "github.com/kairos-io/osbuilder/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
