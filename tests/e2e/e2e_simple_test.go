@@ -23,7 +23,7 @@ var _ = Describe("ISO build test", func() {
 			Eventually(func() string {
 				b, _ := kubectl.GetData("default", "osartifacts", "hello-kairos", "jsonpath={.spec.imageName}")
 				return string(b)
-			}, 2*time.Minute, 2*time.Second).Should(Equal("quay.io/kairos/kairos:opensuse-latest"))
+			}, 2*time.Minute, 2*time.Second).Should(Equal("quay.io/kairos/core-opensuse:latest"))
 
 			Eventually(func() string {
 				b, _ := kubectl.GetData("default", "deployments", "hello-kairos", "jsonpath={.spec.template.metadata.labels.osbuild}")
