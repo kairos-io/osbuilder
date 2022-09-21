@@ -1,10 +1,10 @@
-ARG ELEMENTAL_CLI_VERSION=v0.0.15-ae4f000
+ARG ELEMENTAL_CLI_VERSION=0.20220921
 ARG LEAP_VERSION=15.4
 ARG LUET_VERSION=0.32.5
-FROM quay.io/costoolkit/elemental-cli:$ELEMENTAL_CLI_VERSION AS elemental
+FROM quay.io/kairos/packages:elemental-cli-system-0.20220921 AS elemental
 FROM quay.io/luet/base:$LUET_VERSION AS luet
-FROM quay.io/costoolkit/releases-teal:grub2-live-0.0.3-2  AS grub2
-FROM quay.io/costoolkit/releases-teal:grub2-efi-image-live-0.0.2-2 AS efi
+FROM quay.io/kairos/packages:grub2-livecd-0.0.3-2  AS grub2
+FROM quay.io/kairos/packages:grub2-efi-image-livecd-0.0.2-3 AS efi
 
 FROM opensuse/leap:$LEAP_VERSION
 COPY --from=elemental /usr/bin/elemental /usr/bin/elemental
