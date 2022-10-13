@@ -14,10 +14,11 @@ COPY --from=grub2 / /grub2
 COPY --from=efi / /efi
 
 RUN zypper ref && zypper dup -y
-RUN zypper ref && zypper in -y xfsprogs parted util-linux-systemd e2fsprogs util-linux udev rsync grub2 dosfstools grub2-x86_64-efi squashfs mtools xorriso lvm2
+RUN zypper ref && zypper in -y xfsprogs parted util-linux-systemd e2fsprogs curl util-linux udev rsync grub2 dosfstools grub2-x86_64-efi squashfs mtools xorriso lvm2
 RUN mkdir /config
 
 COPY ./config.yaml /config/manifest.yaml
 COPY ./entrypoint.sh /entrypoint.sh
+COPY ./add-cloud-init.sh /add-cloud-init.sh
 
 ENTRYPOINT [ "/entrypoint.sh" ]
