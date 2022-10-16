@@ -20,7 +20,8 @@ RUN zypper ref && zypper in -y xfsprogs parted util-linux-systemd e2fsprogs curl
 RUN mkdir /config
 # Arm image build deps
 RUN zypper in -y jq docker git curl gptfdisk kpartx sudo
-
+# Netboot
+RUN zypper in -y cdrtools
 # ISO build
 COPY ./config.yaml /config/manifest.yaml
 COPY ./entrypoint.sh /entrypoint.sh
