@@ -13,10 +13,13 @@ FROM quay.io/kairos/packages:grub2-livecd-0.0.4 AS grub2
 FROM quay.io/kairos/packages:grub2-efi-image-livecd-0.0.4 AS efi
 
 ## RPI64
-FROM quay.io/kairos/packages-arm64:u-boot-rpi64-firmware-2021.01-5.1 AS rpi-u-boot
-FROM quay.io/kairos/packages-arm64:raspberrypi-firmware-firmware-2021.03.10-2.1 AS rpi-firmware
-FROM quay.io/kairos/packages-arm64:raspberrypi-firmware-config-firmware-2021.03.10-2.1 AS rpi-firmware-config
-FROM quay.io/kairos/packages-arm64:raspberrypi-firmware-dt-firmware-2021.03.15-2.1 AS rpi-firmware-dt
+
+## Firmware is in the amd64 repo (noarch)
+FROM quay.io/kairos/packages:u-boot-rpi64-firmware-2021.01-5.1 AS rpi-u-boot
+FROM quay.io/kairos/packages:raspberrypi-firmware-firmware-2021.03.10-2.1 AS rpi-firmware
+FROM quay.io/kairos/packages:raspberrypi-firmware-config-firmware-2021.03.10-2.1 AS rpi-firmware-config
+FROM quay.io/kairos/packages:raspberrypi-firmware-dt-firmware-2021.03.15-2.1 AS rpi-firmware-dt
+
 FROM quay.io/kairos/packages-arm64:grub-efi-static-0.1  AS grub-efi
 FROM quay.io/kairos/packages-arm64:grub-config-static-0.1  AS grub-config
 FROM quay.io/kairos/packages-arm64:grub-artifacts-static-0.1   AS grub-artifacts
