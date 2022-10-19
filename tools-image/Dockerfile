@@ -4,30 +4,58 @@ ARG LUET_VERSION=0.32.5
 FROM quay.io/kairos/packages:elemental-cli-system-0.20220921 AS elemental
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 
+### TODO: Replace those naked Dockerfiles copies with luet install so we can keep track of all versioning with 1 repository tag
+### 1) Add the kairos repository with a reference
+### 2) populate folders accordingly
+
 ## amd64 Live CD artifacts
-FROM quay.io/kairos/packages:grub2-livecd-0.0.4  AS grub2
+FROM quay.io/kairos/packages:grub2-livecd-0.0.4 AS grub2
 FROM quay.io/kairos/packages:grub2-efi-image-livecd-0.0.4 AS efi
 
+## RPI64
+FROM quay.io/kairos/packages-arm64:u-boot-rpi64-firmware-2021.01-5.1 AS rpi-u-boot
+FROM quay.io/kairos/packages-arm64:raspberrypi-firmware-firmware-2021.03.10-2.1 AS rpi-firmware
+FROM quay.io/kairos/packages-arm64:raspberrypi-firmware-config-firmware-2021.03.10-2.1 AS rpi-firmware-config
+FROM quay.io/kairos/packages-arm64:raspberrypi-firmware-dt-firmware-2021.03.15-2.1 AS rpi-firmware-dt
+FROM quay.io/kairos/packages-arm64:grub-efi-static-0.1  AS grub-efi
+FROM quay.io/kairos/packages-arm64:grub-config-static-0.1  AS grub-config
+FROM quay.io/kairos/packages-arm64:grub-artifacts-static-0.1   AS grub-artifacts
+
+ 
 FROM opensuse/leap:$LEAP_VERSION
 COPY --from=elemental /usr/bin/elemental /usr/bin/elemental
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 
+# x86_64 ISOs
 COPY --from=grub2 / /grub2
 COPY --from=efi / /efi
 
+# RPI64
+COPY --from=rpi-u-boot / /rpi/u-boot
+COPY --from=rpi-firmware / /rpi/rpi-firmware
+COPY --from=rpi-firmware-config / /rpi/rpi-firmware-config
+COPY --from=rpi-firmware-dt / /rpi/rpi-firmware-dt
+COPY --from=grub-efi / /rpi64/grub/efi
+COPY --from=grub-config / /rpi64/grub/config
+COPY --from=grub-artifacts / /rpi64/grub/artifacts
+
 RUN zypper ref && zypper dup -y
+
+## ISO Build depedencies
 RUN zypper ref && zypper in -y xfsprogs parted util-linux-systemd e2fsprogs curl util-linux udev rsync grub2 dosfstools grub2-x86_64-efi squashfs mtools xorriso lvm2
 RUN mkdir /config
+
 # Arm image build deps
 RUN zypper in -y jq docker git curl gptfdisk kpartx sudo
 # Netboot
 RUN zypper in -y cdrtools
-# ISO build
+
+# ISO build config
 COPY ./config.yaml /config/manifest.yaml
 COPY ./entrypoint.sh /entrypoint.sh
 COPY ./add-cloud-init.sh /add-cloud-init.sh
 
-# ARM
+# ARM helpers
 COPY ./build-arm-image.sh /build-arm-image.sh
 COPY ./arm /arm
 

@@ -100,8 +100,6 @@ usage()
     echo " --local: (optional) Use local repository when building"
     echo " --directory: (optional) A directory which will be used for active/passive/recovery system"
     echo " --model: (optional) The board model"
-    echo " --final-repo: (optional) The luet repository used to download bits required for building"
-    echo " --repo-type: (optional) The luet repository type used to download bits required for building"
     exit 1
 }
 
@@ -242,17 +240,6 @@ WORKDIR=$(mktemp -d --tmpdir arm-builder.XXXXXXXXXX)
 TARGET=$(mktemp -d --tmpdir arm-builder.XXXXXXXXXX)
 STATEDIR=$(mktemp -d --tmpdir arm-builder.XXXXXXXXXX)
 
-# Create a luet config for grabbing packages from local and remote repositories (local with high prio)
-cat << EOF > $WORKDIR/luet.yaml
-repositories:
-  - name: cOS
-    enable: true
-    urls:
-      - $final_repo
-    type: $repo_type
-    priority: 90
-EOF
-
 
 export WORKDIR
 
@@ -311,22 +298,8 @@ cp -rfv ${STATEDIR}/cOS/active.img ${RECOVERY}/cOS/recovery.img
 tune2fs -L ${SYSTEM_LABEL} ${RECOVERY}/cOS/recovery.img
 
 # Install real grub config to recovery
-if [ -z "$manifest" ]; then
-  luet install --config $WORKDIR/luet.yaml -y --system-target $RECOVERY system/grub2-config 
-  luet install --config $WORKDIR/luet.yaml -y --system-target $RECOVERY/grub2 system/grub2-artifacts
-else
-  while IFS=$'\t' read -r name target ; do
-    if [ "$target" == "root/grub2" ]; then
-      luet install --no-spinner --system-target $RECOVERY/grub2 -y "$name"
-    fi
-    if [ "$target" == "root" ]; then
-      luet install --no-spinner --system-target $RECOVERY -y "$name"
-    fi
-  done < <("${YQ_PACKAGES_COMMAND[@]}" | jq -r ".raw_disk.$model.packages[] | [.name, .target] | @tsv")
-fi
-
- # Remove luet cache
-rm -rf $RECOVERY/var $RECOVERY/grub2/var
+cp -rfv /$model/grub/config/* $RECOVERY
+cp -rfv /$model/grub/artifacts/* $RECOVERY
 
 sync
 
@@ -338,18 +311,7 @@ if [ -z "$EFI" ]; then
   exit 1
 fi
 
-if [ -z "$manifest" ]; then
-  luet install --config $WORKDIR/luet.yaml -y --system-target $EFI system/grub2-efi-image
-else
-  while IFS=$'\t' read -r name target ; do
-    if [ "$target" == "efi" ]; then
-      luet install --no-spinner --system-target $EFI -y "$name"
-    fi
-  done < <("${YQ_PACKAGES_COMMAND[@]}" | jq -r ".raw_disk.$model.packages[] | [.name, .target] | @tsv")
-fi
-
- # Remove luet cache
-rm -rf $EFI/var
+cp -rfv /$model/grub/efi/* $EFI
 
 echo ">> Writing image and partition table"
 dd if=/dev/zero of="${output_image}" bs=1024000 count="${size}" || exit 1
