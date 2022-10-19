@@ -299,7 +299,8 @@ tune2fs -L ${SYSTEM_LABEL} ${RECOVERY}/cOS/recovery.img
 
 # Install real grub config to recovery
 cp -rfv /$model/grub/config/* $RECOVERY
-cp -rfv /$model/grub/artifacts/* $RECOVERY
+mkdir -p $RECOVERY/grub2
+cp -rfv /$model/grub/artifacts/* $RECOVERY/grub2
 
 sync
 
