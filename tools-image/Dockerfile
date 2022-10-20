@@ -1,7 +1,7 @@
-ARG ELEMENTAL_CLI_VERSION=0.20220921
+ARG ELEMENTAL_CLI_VERSION=0.20221018-3
 ARG LEAP_VERSION=15.4
-ARG LUET_VERSION=0.32.5
-FROM quay.io/kairos/packages:elemental-cli-system-0.20220921 AS elemental
+ARG LUET_VERSION=0.33.0
+FROM quay.io/kairos/packages:elemental-cli-system-$ELEMENTAL_CLI_VERSION AS elemental
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 
 ### TODO: Replace those naked Dockerfiles copies with luet install so we can keep track of all versioning with 1 repository tag
