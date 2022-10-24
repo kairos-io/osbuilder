@@ -132,23 +132,23 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		},
 	}
 
-	if artifact.GRUBConfig != "" {
-		volumeMounts = append(volumeMounts, VolumeMount{
+	if artifact.Spec.GRUBConfig != "" {
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
 			Name:      "config",
 			MountPath: "/iso/iso-overlay/boot/grub2/grub.cfg",
 			SubPath:   "grub.cfg",
 		})
 	}
 
-	if artifact.CloudConfig != "" {
-		volumeMounts = append(volumeMounts, VolumeMount{
+	if artifact.Spec.CloudConfig != "" {
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
 			Name:      "config",
 			MountPath: "/iso/iso-overlay/cloud_config.yaml",
 			SubPath:   "config",
 		})
 	}
 
-	if artifacts.CloudConfig != "" || artifacts.GRUBConfig != "" {
+	if artifact.Spec.CloudConfig != "" || artifact.Spec.GRUBConfig != "" {
 		cmd = fmt.Sprintf(
 			"/entrypoint.sh --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay --output /public dir:/rootfs",
 			artifact.Name,
