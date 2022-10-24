@@ -116,6 +116,45 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 	privileged := false
 	serviceAccount := false
 
+	cmd := fmt.Sprintf(
+		"/entrypoint.sh --debug --name %s build-iso --date=false --output /public dir:/rootfs",
+		artifact.Name,
+	)
+
+	volumeMounts := []v1.VolumeMount{
+		{
+			Name:      "public",
+			MountPath: "/public",
+		},
+		{
+			Name:      "rootfs",
+			MountPath: "/rootfs",
+		},
+	}
+
+	if artifact.GRUBConfig != "" {
+		volumeMounts = append(volumeMounts, VolumeMount{
+			Name:      "config",
+			MountPath: "/iso/iso-overlay/boot/grub2/grub.cfg",
+			SubPath:   "grub.cfg",
+		})
+	}
+
+	if artifact.CloudConfig != "" {
+		volumeMounts = append(volumeMounts, VolumeMount{
+			Name:      "config",
+			MountPath: "/iso/iso-overlay/cloud_config.yaml",
+			SubPath:   "config",
+		})
+	}
+
+	if artifacts.CloudConfig != "" || artifacts.GRUBConfig != "" {
+		cmd = fmt.Sprintf(
+			"/entrypoint.sh --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay --output /public dir:/rootfs",
+			artifact.Name,
+		)
+	}
+
 	buildIsoContainer := v1.Container{
 		ImagePullPolicy: v1.PullAlways,
 		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
@@ -123,31 +162,9 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		Image:           r.ToolImage,
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
-			fmt.Sprintf(
-				"/entrypoint.sh --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay --output /public dir:/rootfs",
-				artifact.Name,
-			),
+			cmd,
 		},
-		VolumeMounts: []v1.VolumeMount{
-			{
-				Name:      "public",
-				MountPath: "/public",
-			},
-			{
-				Name:      "config",
-				MountPath: "/iso/iso-overlay/cloud_config.yaml",
-				SubPath:   "config",
-			},
-			{
-				Name:      "config",
-				MountPath: "/iso/iso-overlay/boot/grub2/grub.cfg",
-				SubPath:   "grub.cfg",
-			},
-			{
-				Name:      "rootfs",
-				MountPath: "/rootfs",
-			},
-		},
+		VolumeMounts: volumeMounts,
 	}
 
 	servingContainer := v1.Container{
