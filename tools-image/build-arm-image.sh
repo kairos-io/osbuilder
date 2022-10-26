@@ -298,9 +298,9 @@ cp -rfv ${STATEDIR}/cOS/active.img ${RECOVERY}/cOS/recovery.img
 tune2fs -L ${SYSTEM_LABEL} ${RECOVERY}/cOS/recovery.img
 
 # Install real grub config to recovery
-cp -rfv /$model/grub/config/* $RECOVERY
+cp -rfv /arm/grub/config/* $RECOVERY
 mkdir -p $RECOVERY/grub2
-cp -rfv /$model/grub/artifacts/* $RECOVERY/grub2
+cp -rfv /arm/grub/artifacts/* $RECOVERY/grub2
 
 sync
 
@@ -312,7 +312,7 @@ if [ -z "$EFI" ]; then
   exit 1
 fi
 
-cp -rfv /$model/grub/efi/* $EFI
+cp -rfv /arm/grub/efi/* $EFI
 
 echo ">> Writing image and partition table"
 dd if=/dev/zero of="${output_image}" bs=1024000 count="${size}" || exit 1
