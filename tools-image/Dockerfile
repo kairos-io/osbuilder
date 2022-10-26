@@ -71,5 +71,7 @@ COPY ./add-cloud-init.sh /add-cloud-init.sh
 COPY ./build-arm-image.sh /build-arm-image.sh
 COPY ./arm /arm
 
+COPY defaults.yaml /defaults.yaml
+
 
 ENTRYPOINT [ "/entrypoint.sh" ]

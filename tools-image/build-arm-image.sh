@@ -374,15 +374,20 @@ mount $recovery $WORKDIR/recovery
 mount $state $WORKDIR/state
 mount $efi $WORKDIR/efi
 
+mkdir $WORKDIR/persistent
+mount $persistent $WORKDIR/persistent
+mkdir -p $WORKDIR/persistent/cloud-config
+
+cp -rfv /defaults.yaml $WORKDIR/persistent/cloud-config/01_defaults.yaml
+
+grub2-editenv $WORKDIR/state/grub_oem_env set "display_name=Kairos"
+
 # Set a OEM config file if specified
 if [ -n "$config" ]; then
   echo ">> Copying $config OEM config file"
-  mkdir $WORKDIR/persistent
-  mount $persistent $WORKDIR/persistent
-  mkdir $WORKDIR/persistent/cloud-config
   get_url $config $WORKDIR/persistent/cloud-config/99_custom.yaml
-  umount $WORKDIR/persistent
 fi
+umount $WORKDIR/persistent
 
 # Copy over content
 cp -arf $EFI/* $WORKDIR/efi
