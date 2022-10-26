@@ -380,7 +380,7 @@ mkdir -p $WORKDIR/persistent/cloud-config
 
 cp -rfv /defaults.yaml $WORKDIR/persistent/cloud-config/01_defaults.yaml
 
-grub2-editenv $WORKDIR/state/grub_oem_env set "display_name=Kairos"
+grub2-editenv $WORKDIR/state/grub_oem_env set "default_menu_entry=Kairos"
 
 # Set a OEM config file if specified
 if [ -n "$config" ]; then
