@@ -140,12 +140,19 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		})
 	}
 
+	cloudImgCmd := fmt.Sprintf(
+		"/raw-images.sh /rootfs /public/%s.raw",
+		artifact.Name,
+	)
+
 	if artifact.Spec.CloudConfig != "" {
 		volumeMounts = append(volumeMounts, v1.VolumeMount{
 			Name:      "config",
 			MountPath: "/iso/iso-overlay/cloud_config.yaml",
 			SubPath:   "config",
 		})
+
+		cloudImgCmd += " /iso/iso-overlay/cloud_config.yaml"
 	}
 
 	if artifact.Spec.CloudConfig != "" || artifact.Spec.GRUBConfig != "" {
@@ -163,6 +170,48 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			cmd,
+		},
+		VolumeMounts: volumeMounts,
+	}
+
+	buildCloudImageContainer := v1.Container{
+		ImagePullPolicy: v1.PullAlways,
+		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
+		Name:            "build-cloud-image",
+		Image:           r.ToolImage,
+		Command:         []string{"/bin/bash", "-cxe"},
+		Args: []string{
+			cloudImgCmd,
+		},
+		VolumeMounts: volumeMounts,
+	}
+
+	buildAzureCloudImageContainer := v1.Container{
+		ImagePullPolicy: v1.PullAlways,
+		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
+		Name:            "build-azure-cloud-image",
+		Image:           r.ToolImage,
+		Command:         []string{"/bin/bash", "-cxe"},
+		Args: []string{
+			fmt.Sprintf(
+				"/azure.sh /public/%s.raw /public/%s-azure.raw",
+				artifact.Name,
+			),
+		},
+		VolumeMounts: volumeMounts,
+	}
+
+	buildGCECloudImageContainer := v1.Container{
+		ImagePullPolicy: v1.PullAlways,
+		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
+		Name:            "build-gce-cloud-image",
+		Image:           r.ToolImage,
+		Command:         []string{"/bin/bash", "-cxe"},
+		Args: []string{
+			fmt.Sprintf(
+				"/gce.sh /public/%s.raw /public/%s-azure.raw",
+				artifact.Name,
+			),
 		},
 		VolumeMounts: volumeMounts,
 	}
@@ -212,11 +261,24 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 
 	}
 
-	pod.InitContainers = append(pod.InitContainers, buildIsoContainer)
+	if artifact.Spec.ISO {
+		pod.InitContainers = append(pod.InitContainers, buildIsoContainer)
+	}
+
+	if artifact.Spec.CloudImage || artifact.Spec.AzureImage || artifact.Spec.GCEImage {
+		pod.InitContainers = append(pod.InitContainers, buildCloudImageContainer)
+	}
+
+	if artifact.Spec.AzureImage {
+		pod.InitContainers = append(pod.InitContainers, buildAzureCloudImageContainer)
+	}
+
+	if artifact.Spec.GCEImage {
+		pod.InitContainers = append(pod.InitContainers, buildGCECloudImageContainer)
+	}
 
 	if pushImage {
 		pod.InitContainers = append(pod.InitContainers, createImageContainer(r.ToolImage, artifact.Spec.PushOptions))
-
 	}
 
 	pod.Containers = []v1.Container{servingContainer}
