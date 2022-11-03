@@ -277,3 +277,9 @@ e2e-tests:
 	GINKGO=$(GINKGO) KUBE_VERSION=${KUBE_VERSION} $(ROOT_DIR)/script/test.sh
 
 kind-e2e-tests: ginkgo kind-setup install undeploy-dev deploy-dev e2e-tests
+
+
+kubesplit: manifests kustomize
+	rm -rf helm-chart
+	mkdir helm-chart
+	$(KUSTOMIZE) build config/default | kubesplit -helm helm-chart
