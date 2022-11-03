@@ -28,7 +28,11 @@ FROM quay.io/kairos/packages-arm64:grub-efi-static-0.1  AS grub-efi
 FROM quay.io/kairos/packages-arm64:grub-config-static-0.1  AS grub-config
 FROM quay.io/kairos/packages-arm64:grub-artifacts-static-0.1   AS grub-artifacts
 
- 
+ ## RAW images
+FROM quay.io/kairos/packages:grub-efi-static-0.1  AS grub-raw-efi
+FROM quay.io/kairos/packages:grub-config-static-0.1  AS grub-raw-config
+FROM quay.io/kairos/packages:grub-artifacts-static-0.1   AS grub-raw-artifacts
+
 FROM opensuse/leap:$LEAP_VERSION
 COPY --from=elemental /usr/bin/elemental /usr/bin/elemental
 COPY --from=luet /usr/bin/luet /usr/bin/luet
@@ -36,6 +40,11 @@ COPY --from=luet /usr/bin/luet /usr/bin/luet
 # x86_64 ISOs
 COPY --from=grub2 / /grub2
 COPY --from=efi / /efi
+
+# RAW images
+COPY --from=grub-raw-efi / /raw/grub
+COPY --from=grub-raw-config / /raw/grubconfig
+COPY --from=grub-raw-artifacts / /raw/grubartifacts
 
 # RPI64
 COPY --from=rpi-u-boot / /rpi/u-boot
@@ -70,6 +79,11 @@ COPY ./add-cloud-init.sh /add-cloud-init.sh
 # ARM helpers
 COPY ./build-arm-image.sh /build-arm-image.sh
 COPY ./arm /arm
+
+# RAW images helpers
+COPY ./gce.sh /gce.sh
+COPY ./raw-images.sh /raw-images.sh
+COPY ./azure.sh /azure.sh
 
 COPY defaults.yaml /defaults.yaml
 
