@@ -30,6 +30,8 @@ echo "Generating squashfs from $DIRECTORY"
 mksquashfs $DIRECTORY recovery.squashfs -b 1024k -comp xz -Xbcj x86
 mv recovery.squashfs /build/root/cOS/recovery.squashfs
 
+grub2-editenv /build/root/grub_oem_env set "default_menu_entry=Kairos"
+
 # Create a 2GB filesystem for RECOVERY including the contents for root (grub config and squasfs container)
 truncate -s $((2048*1024*1024)) rootfs.part
 mkfs.ext2 -L "${RECOVERY_LABEL}" -d /build/root rootfs.part
