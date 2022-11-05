@@ -70,6 +70,8 @@ RUN mkdir /config
 RUN zypper in -y jq docker git curl gptfdisk kpartx sudo
 # Netboot
 RUN zypper in -y cdrtools
+# cloud images
+RUN zypper in -y bc qemu-tools
 
 # ISO build config
 COPY ./config.yaml /config/manifest.yaml
