@@ -194,7 +194,8 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			fmt.Sprintf(
-				"/azure.sh /public/%s.raw /public/%s-azure.raw",
+				"/azure.sh /public/%s.raw /public/%s.vhd",
+				artifact.Name,
 				artifact.Name,
 			),
 		},
@@ -209,7 +210,8 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			fmt.Sprintf(
-				"/gce.sh /public/%s.raw /public/%s-azure.raw",
+				"/gce.sh /public/%s.raw /public/%s.gce.raw",
+				artifact.Name,
 				artifact.Name,
 			),
 		},
