@@ -86,6 +86,7 @@ COPY ./arm /arm
 COPY ./gce.sh /gce.sh
 COPY ./raw-images.sh /raw-images.sh
 COPY ./azure.sh /azure.sh
+COPY ./netboot.sh /netboot.sh
 
 COPY defaults.yaml /defaults.yaml
 
