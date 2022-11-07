@@ -31,10 +31,16 @@ type OSArtifactSpec struct {
 	// Foo is an example field of OSArtifact. Edit osartifact_types.go to remove/update
 	ImageName string `json:"imageName,omitempty"`
 	// This needs to be revisited
-	ISO        bool `json:"iso,omitempty"`
-	CloudImage bool `json:"cloudImage,omitempty"`
-	AzureImage bool `json:"azureImage,omitempty"`
-	GCEImage   bool `json:"gceImage,omitempty"`
+	ISO bool `json:"iso,omitempty"`
+
+	//Disk-only stuff
+	DiskSize   string `json:"diskSize,omitempty"`
+	CloudImage bool   `json:"cloudImage,omitempty"`
+	AzureImage bool   `json:"azureImage,omitempty"`
+	GCEImage   bool   `json:"gceImage,omitempty"`
+
+	Netboot    bool   `json:"netboot,omitempty"`
+	NetbootURL string `json:"netboot_url",omitempty`
 
 	// TODO: treat cloudconfig as a secret, and take a secretRef where to store it (optionally)
 	CloudConfig string `json:"cloudConfig,omitempty"`

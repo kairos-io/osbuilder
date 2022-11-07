@@ -118,7 +118,7 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 	logger.Info(fmt.Sprintf("Checking deployment %v", osbuild))
 
-	desiredDeployment := r.genDeployment(osbuild)
+	desiredDeployment := r.genDeployment(osbuild, svc)
 	deployment, err := r.clientSet.AppsV1().Deployments(req.Namespace).Get(ctx, desiredDeployment.Name, v1.GetOptions{})
 	if deployment == nil || apierrors.IsNotFound(err) {
 		logger.Info(fmt.Sprintf("Creating Deployment %v", deployment))

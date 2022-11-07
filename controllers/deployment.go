@@ -104,7 +104,8 @@ func osReleaseContainer(containerImage string) v1.Container {
 	}
 }
 
-func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) *appsv1.Deployment {
+func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact, svc *v1.Service) *appsv1.Deployment {
+	// TODO: svc is unused, but could be used in the future to generate the Netboot URL
 	objMeta := metav1.ObjectMeta{
 		Name:            artifact.Name,
 		Namespace:       artifact.Namespace,
@@ -179,9 +180,37 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
 		Name:            "build-cloud-image",
 		Image:           r.ToolImage,
-		Command:         []string{"/bin/bash", "-cxe"},
+
+		Command: []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			cloudImgCmd,
+		},
+		VolumeMounts: volumeMounts,
+	}
+
+	if artifact.Spec.DiskSize != "" {
+		buildCloudImageContainer.Env = []v1.EnvVar{{
+			Name:  "EXTEND",
+			Value: artifact.Spec.DiskSize,
+		}}
+	}
+
+	extractNetboot := v1.Container{
+		ImagePullPolicy: v1.PullAlways,
+		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
+		Name:            "build-netboot",
+		Image:           r.ToolImage,
+		Command:         []string{"/bin/bash", "-cxe"},
+		Env: []v1.EnvVar{{
+			Name:  "URL",
+			Value: artifact.Spec.NetbootURL,
+		}},
+		Args: []string{
+			fmt.Sprintf(
+				"/netboot.sh /public/%s.iso /public/%s",
+				artifact.Name,
+				artifact.Name,
+			),
 		},
 		VolumeMounts: volumeMounts,
 	}
@@ -263,8 +292,12 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact) 
 
 	}
 
-	if artifact.Spec.ISO {
+	if artifact.Spec.ISO || artifact.Spec.Netboot {
 		pod.InitContainers = append(pod.InitContainers, buildIsoContainer)
+	}
+
+	if artifact.Spec.Netboot {
+		pod.InitContainers = append(pod.InitContainers, extractNetboot)
 	}
 
 	if artifact.Spec.CloudImage || artifact.Spec.AzureImage || artifact.Spec.GCEImage {

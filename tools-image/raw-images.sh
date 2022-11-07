@@ -9,6 +9,7 @@
 
 : "${OEM_LABEL:=COS_OEM}"
 : "${RECOVERY_LABEL:=COS_RECOVERY}"
+: "${EXTEND:=}"
 
 DIRECTORY=$1
 OUT=${2:-disk.raw}
@@ -65,6 +66,11 @@ truncate -s $((3*1024*1024)) $OUT
 
 # Add an extra MB at the end of the disk for the gpt headers, in fact 34 sectors would be enough, but adding some more does not hurt.
 truncate -s "+$((1024*1024))" $OUT
+
+if [ -n "$EXTEND" ]; then
+  echo "Extending image of $EXTEND MB"
+  truncate -s "+$(($EXTEND*1024*1024))" $OUT
+fi
 
 # Create the partition table in $OUT (assumes sectors of 512 bytes)
 sgdisk -n 1:2048:+2M -c 1:legacy -t 1:EF02 $OUT
