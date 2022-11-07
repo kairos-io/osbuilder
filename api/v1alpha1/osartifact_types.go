@@ -40,7 +40,7 @@ type OSArtifactSpec struct {
 	GCEImage   bool   `json:"gceImage,omitempty"`
 
 	Netboot    bool   `json:"netboot,omitempty"`
-	NetbootURL string `json:"netboot_url",omitempty`
+	NetbootURL string `json:"netbootURL,omitempty"`
 
 	// TODO: treat cloudconfig as a secret, and take a secretRef where to store it (optionally)
 	CloudConfig string `json:"cloudConfig,omitempty"`

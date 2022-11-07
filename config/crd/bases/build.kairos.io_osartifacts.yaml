@@ -35,6 +35,8 @@ spec:
           spec:
             description: OSArtifactSpec defines the desired state of OSArtifact
             properties:
+              azureImage:
+                type: boolean
               bundles:
                 items:
                   type: string
@@ -43,6 +45,13 @@ spec:
                 description: 'TODO: treat cloudconfig as a secret, and take a secretRef
                   where to store it (optionally)'
                 type: string
+              cloudImage:
+                type: boolean
+              diskSize:
+                description: Disk-only stuff
+                type: string
+              gceImage:
+                type: boolean
               grubConfig:
                 type: string
               imageName:
@@ -50,7 +59,12 @@ spec:
                   to remove/update
                 type: string
               iso:
+                description: This needs to be revisited
                 type: boolean
+              netboot:
+                type: boolean
+              netbootURL:
+                type: string
               osRelease:
                 type: string
               pull:
