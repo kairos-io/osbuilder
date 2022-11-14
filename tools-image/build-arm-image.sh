@@ -267,7 +267,7 @@ ensure_dir_structure $TARGET
 # Download the container image
 if [ -z "$directory" ]; then
   echo ">>> Downloading container image"
-  elemental pull-image $container_image $TARGET
+  elemental pull-image $( (( $local_build == 'true')) && printf %s '--local' ) $container_image $TARGET
 else
   echo ">>> Copying files from $directory"
   rsync -axq --exclude='host' --exclude='mnt' --exclude='proc' --exclude='sys' --exclude='dev' --exclude='tmp' ${directory}/ $TARGET
