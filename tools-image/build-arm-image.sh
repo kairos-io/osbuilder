@@ -320,7 +320,7 @@ fi
 cp -rfv /arm/grub/efi/* $EFI
 if [ -n "$EFI" ] && [  -n "$efi_dir" ]; then
   echo "Copy $efi_dir to EFI directory"
-  cp -rfv $efi_dir $EFI
+  cp -rfv $efi_dir/* $EFI
 fi
 
 echo ">> Writing image and partition table"
