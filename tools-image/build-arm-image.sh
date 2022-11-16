@@ -100,6 +100,7 @@ usage()
     echo " --local: (optional) Use local repository when building"
     echo " --directory: (optional) A directory which will be used for active/passive/recovery system"
     echo " --model: (optional) The board model"
+    echo " --efi-dir: (optional) A directory with files which will be added to the efi partition"
     exit 1
 }
 
@@ -173,6 +174,10 @@ while [ "$#" -gt 0 ]; do
         --model)
             shift 1
             model=$1
+            ;;
+        --efi-dir)
+            shift 1
+            efi_dir=$1
             ;;
         --final-repo)
             shift 1
@@ -313,6 +318,10 @@ if [ -z "$EFI" ]; then
 fi
 
 cp -rfv /arm/grub/efi/* $EFI
+if [ -n "$EFI" ] && [  -n "$efi_dir" ]; then
+  echo "Copy $efi_dir to EFI directory"
+  cp -rfv $efi_dir $EFI
+fi
 
 echo ">> Writing image and partition table"
 dd if=/dev/zero of="${output_image}" bs=1024000 count="${size}" || exit 1
