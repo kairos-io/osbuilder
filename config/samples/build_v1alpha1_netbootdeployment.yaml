@@ -1,0 +1,6 @@
+apiVersion: build.kairos.io/v1alpha1
+kind: NetbootDeployment
+metadata:
+  name: netbootdeployment-sample
+spec:
+  # TODO(user): Add fields here

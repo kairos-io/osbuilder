@@ -1,0 +1,20 @@
+# permissions for end users to view netbootdeployments.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: netbootdeployment-viewer-role
+rules:
+- apiGroups:
+  - build.kairos.io
+  resources:
+  - netbootdeployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - build.kairos.io
+  resources:
+  - netbootdeployments/status
+  verbs:
+  - get

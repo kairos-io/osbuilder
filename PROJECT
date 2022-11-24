@@ -16,4 +16,13 @@ resources:
   kind: OSArtifact
   path: github.com/kairos-io/osbuilder/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kairos.io
+  group: build
+  kind: NetbootDeployment
+  path: github.com/kairos-io/osbuilder/api/v1alpha1
+  version: v1alpha1
 version: "3"
