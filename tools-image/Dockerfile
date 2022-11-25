@@ -1,4 +1,5 @@
-ARG ELEMENTAL_CLI_VERSION=0.20221107.1
+# https://quay.io/repository/kairos/packages?tab=tags&tag=latest
+ARG ELEMENTAL_CLI_VERSION=0.20221121.1
 ARG LEAP_VERSION=15.4
 ARG LUET_VERSION=0.33.0
 FROM quay.io/kairos/packages:elemental-cli-system-$ELEMENTAL_CLI_VERSION AS elemental
