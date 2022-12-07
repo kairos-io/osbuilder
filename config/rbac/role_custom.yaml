@@ -47,9 +47,9 @@ rules:
   - create
   - update
 - apiGroups:
-  - "apps"
+  - "batch"
   resources:
-  - deployments
+  - jobs
   verbs:
   - get
   - create

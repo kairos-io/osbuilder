@@ -20,13 +20,13 @@ import (
 	"fmt"
 
 	buildv1alpha1 "github.com/kairos-io/osbuilder/api/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func genDeploymentLabel(s string) map[string]string {
+func genJobLabel(s string) map[string]string {
 	return map[string]string{
 		"osbuild": "workload" + s,
 	}
@@ -64,7 +64,7 @@ func createImageContainer(containerImage string, pushOptions buildv1alpha1.Push)
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			fmt.Sprintf(
-				"tar -czvpf test.tar -C /rootfs . && luet util pack %s test.tar image.tar && mv image.tar /public",
+				"tar -czvpf test.tar -C /rootfs . && luet util pack %s test.tar image.tar && mv image.tar /artifacts",
 				pushOptions.ImageName,
 			),
 		},
@@ -74,8 +74,8 @@ func createImageContainer(containerImage string, pushOptions buildv1alpha1.Push)
 				MountPath: "/rootfs",
 			},
 			{
-				Name:      "public",
-				MountPath: "/public",
+				Name:      "artifacts",
+				MountPath: "/artifacts",
 			},
 		},
 	}
@@ -104,8 +104,7 @@ func osReleaseContainer(containerImage string) v1.Container {
 	}
 }
 
-func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact, svc *v1.Service) *appsv1.Deployment {
-	// TODO: svc is unused, but could be used in the future to generate the Netboot URL
+func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv1.Job {
 	objMeta := metav1.ObjectMeta{
 		Name:            artifact.Name,
 		Namespace:       artifact.Namespace,
@@ -118,14 +117,14 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact, 
 	serviceAccount := false
 
 	cmd := fmt.Sprintf(
-		"/entrypoint.sh --debug --name %s build-iso --date=false --output /public dir:/rootfs",
+		"/entrypoint.sh --debug --name %s build-iso --date=false --output /artifacts dir:/rootfs",
 		artifact.Name,
 	)
 
 	volumeMounts := []v1.VolumeMount{
 		{
-			Name:      "public",
-			MountPath: "/public",
+			Name:      "artifacts",
+			MountPath: "/artifacts",
 		},
 		{
 			Name:      "rootfs",
@@ -142,7 +141,7 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact, 
 	}
 
 	cloudImgCmd := fmt.Sprintf(
-		"/raw-images.sh /rootfs /public/%s.raw",
+		"/raw-images.sh /rootfs /artifacts/%s.raw",
 		artifact.Name,
 	)
 
@@ -158,7 +157,7 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact, 
 
 	if artifact.Spec.CloudConfig != "" || artifact.Spec.GRUBConfig != "" {
 		cmd = fmt.Sprintf(
-			"/entrypoint.sh --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay --output /public dir:/rootfs",
+			"/entrypoint.sh --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay --output /artifacts dir:/rootfs",
 			artifact.Name,
 		)
 	}
@@ -207,7 +206,7 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact, 
 		}},
 		Args: []string{
 			fmt.Sprintf(
-				"/netboot.sh /public/%s.iso /public/%s",
+				"/netboot.sh /artifacts/%s.iso /artifacts/%s",
 				artifact.Name,
 				artifact.Name,
 			),
@@ -223,7 +222,7 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact, 
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			fmt.Sprintf(
-				"/azure.sh /public/%s.raw /public/%s.vhd",
+				"/azure.sh /artifacts/%s.raw /artifacts/%s.vhd",
 				artifact.Name,
 				artifact.Name,
 			),
@@ -239,26 +238,12 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact, 
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			fmt.Sprintf(
-				"/gce.sh /public/%s.raw /public/%s.gce.raw",
+				"/gce.sh /artifacts/%s.raw /artifacts/%s.gce.raw",
 				artifact.Name,
 				artifact.Name,
 			),
 		},
 		VolumeMounts: volumeMounts,
-	}
-
-	servingContainer := v1.Container{
-		ImagePullPolicy: v1.PullAlways,
-		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
-		Name:            "serve",
-		Ports:           []v1.ContainerPort{v1.ContainerPort{Name: "http", ContainerPort: 80}},
-		Image:           r.ServingImage,
-		VolumeMounts: []v1.VolumeMount{
-			{
-				Name:      "public",
-				MountPath: "/usr/share/nginx/html",
-			},
-		},
 	}
 
 	pod := v1.PodSpec{
@@ -313,26 +298,25 @@ func (r *OSArtifactReconciler) genDeployment(artifact buildv1alpha1.OSArtifact, 
 	}
 
 	if pushImage {
-		pod.InitContainers = append(pod.InitContainers, createImageContainer(r.ToolImage, artifact.Spec.PushOptions))
+		pod.Containers = []v1.Container{
+			createImageContainer(r.ToolImage, artifact.Spec.PushOptions),
+		}
 	}
 
-	pod.Containers = []v1.Container{servingContainer}
+	jobLabels := genJobLabel(artifact.Name)
 
-	deploymentLabels := genDeploymentLabel(artifact.Name)
-	replicas := int32(1)
-
-	return &appsv1.Deployment{
+	job := batchv1.Job{
 		ObjectMeta: objMeta,
-
-		Spec: appsv1.DeploymentSpec{
-			Selector: &metav1.LabelSelector{MatchLabels: deploymentLabels},
-			Replicas: &replicas,
+		Spec: batchv1.JobSpec{
+			Selector: &metav1.LabelSelector{MatchLabels: jobLabels},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: deploymentLabels,
+					Labels: jobLabels,
 				},
 				Spec: pod,
 			},
 		},
 	}
+
+	return &job
 }

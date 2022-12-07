@@ -1,6 +1,8 @@
 resources:
 - manager.yaml
 
+namespace: system
+
 generatorOptions:
   disableNameSuffixHash: true
 

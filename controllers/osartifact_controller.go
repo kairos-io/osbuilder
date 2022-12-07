@@ -98,34 +98,16 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	desiredService := genService(osbuild)
-	logger.Info(fmt.Sprintf("Checking service %v", osbuild))
-
-	svc, err := r.clientSet.CoreV1().Services(req.Namespace).Get(ctx, desiredService.Name, v1.GetOptions{})
-	if svc == nil || apierrors.IsNotFound(err) {
-		logger.Info(fmt.Sprintf("Creating service %v", desiredService))
-
-		svc, err = r.clientSet.CoreV1().Services(req.Namespace).Create(ctx, desiredService, v1.CreateOptions{})
-		if err != nil {
-			logger.Error(err, "Failed while creating svc")
-			return ctrl.Result{}, err
-		}
-
-		return ctrl.Result{Requeue: true}, err
-	}
-	if err != nil {
-		return ctrl.Result{Requeue: true}, err
-	}
 	logger.Info(fmt.Sprintf("Checking deployment %v", osbuild))
 
-	desiredDeployment := r.genDeployment(osbuild, svc)
-	deployment, err := r.clientSet.AppsV1().Deployments(req.Namespace).Get(ctx, desiredDeployment.Name, v1.GetOptions{})
-	if deployment == nil || apierrors.IsNotFound(err) {
-		logger.Info(fmt.Sprintf("Creating Deployment %v", deployment))
+	desiredJob := r.genJob(osbuild)
+	job, err := r.clientSet.BatchV1().Jobs(req.Namespace).Get(ctx, desiredJob.Name, v1.GetOptions{})
+	if job == nil || apierrors.IsNotFound(err) {
+		logger.Info(fmt.Sprintf("Creating Job %v", job))
 
-		deployment, err = r.clientSet.AppsV1().Deployments(req.Namespace).Create(ctx, desiredDeployment, v1.CreateOptions{})
+		job, err = r.clientSet.BatchV1().Jobs(req.Namespace).Create(ctx, desiredJob, v1.CreateOptions{})
 		if err != nil {
-			logger.Error(err, "Failed while creating deployment")
+			logger.Error(err, "Failed while creating job")
 			return ctrl.Result{}, nil
 		}
 
@@ -143,7 +125,7 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if deployment.Status.ReadyReplicas == deployment.Status.Replicas {
+	if job.Status.Succeeded > 0 {
 		copy.Status.Phase = "Ready"
 	} else if copy.Status.Phase != "Building" {
 		copy.Status.Phase = "Building"
