@@ -38,3 +38,7 @@ spec:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=127.0.0.1:8080"
         - "--leader-elect"
+        - "--copy-to-namespace=$(NGINX_NAMESPACE)"
+        - "--copy-role=$(ARTIFACT_COPIER_ROLE)"
+        - --copy-to-pod-label="app.kubernetes.io/name=osbuilder-nginx"
+        - --copy-to-path="/usr/share/nginx/html"

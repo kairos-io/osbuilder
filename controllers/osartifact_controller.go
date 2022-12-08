@@ -35,12 +35,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+type ArtifactPodInfo struct {
+	Label     string
+	Namespace string
+	Path      string
+	Role      string
+}
+
 // OSArtifactReconciler reconciles a OSArtifact object
 type OSArtifactReconciler struct {
 	client.Client
 	Scheme                  *runtime.Scheme
 	clientSet               *kubernetes.Clientset
 	ServingImage, ToolImage string
+	ArtifactPodInfo         ArtifactPodInfo
+}
+
+func genObjectMeta(artifact buildv1alpha1.OSArtifact) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:            artifact.Name,
+		Namespace:       artifact.Namespace,
+		OwnerReferences: genOwner(artifact),
+	}
 }
 
 func genOwner(artifact buildv1alpha1.OSArtifact) []metav1.OwnerReference {
@@ -99,6 +115,21 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	logger.Info(fmt.Sprintf("Checking deployment %v", osbuild))
+
+	// TODO: We need to create the Role in the namespace where the nginx Pod is,
+	// so that the copier container has permissions to copy to that Pod.
+	// The nginx Pod should be defined in the OSArtifact CRD as in "when done
+	// write the results in this Namespace:Pod, under this path".
+	// The controller will try to create RBAC with the proper permissions but
+	// Kubernetes requires us to have the permissions before we grant them to others.
+	// This means the controller should have these permissions already.
+	// Since we control the nginx, we can make it so but if the user specifies
+	// some other Pod it may fail. Also, every OSArtifact will have to specify
+	// the nginx Pod which makes it cumbersome.
+	err = r.createRBAC(ctx, osbuild)
+	if err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
 
 	desiredJob := r.genJob(osbuild)
 	job, err := r.clientSet.BatchV1().Jobs(req.Namespace).Get(ctx, desiredJob.Name, v1.GetOptions{})

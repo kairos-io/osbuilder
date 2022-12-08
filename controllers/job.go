@@ -17,12 +17,16 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	buildv1alpha1 "github.com/kairos-io/osbuilder/api/v1alpha1"
+	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,6 +38,7 @@ func genJobLabel(s string) map[string]string {
 
 // TODO: Handle registry auth
 // TODO: This shells out, but needs ENV_VAR with key refs mapping
+// TODO: Cache downloaded images?
 func unpackContainer(id, containerImage, pullImage string, pullOptions buildv1alpha1.Pull) v1.Container {
 	return v1.Container{
 		ImagePullPolicy: v1.PullAlways,
@@ -81,6 +86,28 @@ func createImageContainer(containerImage string, pushOptions buildv1alpha1.Push)
 	}
 }
 
+func createPushToServerImageContainer(containerImage string, artifactPodInfo ArtifactPodInfo) v1.Container {
+	return v1.Container{
+		ImagePullPolicy: v1.PullAlways,
+		Name:            "push-to-server",
+		Image:           containerImage,
+		Command:         []string{"/bin/bash", "-cxe"},
+		Args: []string{
+			fmt.Sprintf("kubectl get pods -n %s", artifactPodInfo.Namespace),
+		},
+		VolumeMounts: []v1.VolumeMount{
+			{
+				Name:      "rootfs",
+				MountPath: "/rootfs",
+			},
+			{
+				Name:      "artifacts",
+				MountPath: "/artifacts",
+			},
+		},
+	}
+}
+
 func osReleaseContainer(containerImage string) v1.Container {
 	return v1.Container{
 		ImagePullPolicy: v1.PullAlways,
@@ -105,16 +132,12 @@ func osReleaseContainer(containerImage string) v1.Container {
 }
 
 func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv1.Job {
-	objMeta := metav1.ObjectMeta{
-		Name:            artifact.Name,
-		Namespace:       artifact.Namespace,
-		OwnerReferences: genOwner(artifact),
-	}
+	objMeta := genObjectMeta(artifact)
 
 	pushImage := artifact.Spec.PushOptions.Push
 
 	privileged := false
-	serviceAccount := false
+	serviceAccount := true
 
 	cmd := fmt.Sprintf(
 		"/entrypoint.sh --debug --name %s build-iso --date=false --output /artifacts dir:/rootfs",
@@ -248,9 +271,11 @@ func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv
 
 	pod := v1.PodSpec{
 		AutomountServiceAccountToken: &serviceAccount,
+		ServiceAccountName:           objMeta.Name,
+		RestartPolicy:                v1.RestartPolicyNever,
 		Volumes: []v1.Volume{
 			{
-				Name:         "public",
+				Name:         "artifacts",
 				VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}},
 			},
 			{
@@ -274,7 +299,6 @@ func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv
 
 	if artifact.Spec.OSRelease != "" {
 		pod.InitContainers = append(pod.InitContainers, osReleaseContainer(r.ToolImage))
-
 	}
 
 	if artifact.Spec.ISO || artifact.Spec.Netboot {
@@ -297,10 +321,17 @@ func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv
 		pod.InitContainers = append(pod.InitContainers, buildGCECloudImageContainer)
 	}
 
+	// TODO: Shell out to `kubectl cp`? Why not?
+	// TODO: Does it make sense to build the image and not push it? Maybe remove
+	// this flag?
 	if pushImage {
-		pod.Containers = []v1.Container{
-			createImageContainer(r.ToolImage, artifact.Spec.PushOptions),
-		}
+		pod.InitContainers = append(pod.InitContainers, createImageContainer(r.ToolImage, artifact.Spec.PushOptions))
+	}
+
+	pod.Containers = []v1.Container{
+		// TODO: Add kubectl to osbuilder-tools?
+		//createPushToServerImageContainer(r.ToolImage),
+		createPushToServerImageContainer("bitnami/kubectl", r.ArtifactPodInfo),
 	}
 
 	jobLabels := genJobLabel(artifact.Name)
@@ -308,7 +339,6 @@ func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv
 	job := batchv1.Job{
 		ObjectMeta: objMeta,
 		Spec: batchv1.JobSpec{
-			Selector: &metav1.LabelSelector{MatchLabels: jobLabels},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: jobLabels,
@@ -319,4 +349,111 @@ func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv
 	}
 
 	return &job
+}
+
+// createServiceAccount creates a service account that has the permissions to
+// copy the artifacts to the http server Pod. This service account is used for
+// the "push to server" container.
+func (r *OSArtifactReconciler) createCopierServiceAccount(ctx context.Context, objMeta metav1.ObjectMeta) error {
+	sa, err := r.clientSet.CoreV1().
+		ServiceAccounts(objMeta.Namespace).Get(ctx, objMeta.Name, metav1.GetOptions{})
+	if sa == nil || apierrors.IsNotFound(err) {
+		t := true
+		_, err := r.clientSet.CoreV1().ServiceAccounts(objMeta.Namespace).Create(ctx,
+			&v1.ServiceAccount{
+				ObjectMeta:                   objMeta,
+				AutomountServiceAccountToken: &t,
+			}, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
+// func (r *OSArtifactReconciler) createCopierRole(ctx context.Context, objMeta metav1.ObjectMeta) error {
+// 	role, err := r.clientSet.RbacV1().
+// 		Roles(objMeta.Namespace).
+// 		Get(ctx, objMeta.Name, metav1.GetOptions{})
+// 	if role == nil || apierrors.IsNotFound(err) {
+// 		_, err := r.clientSet.RbacV1().Roles(objMeta.Namespace).Create(ctx,
+// 			&rbacv1.Role{
+// 				ObjectMeta: objMeta,
+// 				Rules: []rbacv1.PolicyRule{
+// 					// TODO: The actual permissions we need is that to copy to a Pod.
+// 					// The Pod is on another namespace, so we need a cluster wide permission.
+// 					// This can get viral because the controller needs to have the permissions
+// 					// if it is to grant them to the Job.
+// 					{
+// 						Verbs:     []string{"list"},
+// 						APIGroups: []string{""},
+// 						Resources: []string{"pods"},
+// 					},
+// 				},
+// 			},
+// 			metav1.CreateOptions{},
+// 		)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+
+// 	return err
+// }
+
+func (r *OSArtifactReconciler) createCopierRoleBinding(ctx context.Context, objMeta metav1.ObjectMeta) error {
+	newrb := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      objMeta.Name,
+			Namespace: r.ArtifactPodInfo.Namespace,
+			// TODO: We can't have cross-namespace owners. The role binding will have to deleted explicitly by the reconciler (finalizer?)
+			// OwnerReferences: objMeta.OwnerReferences,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     r.ArtifactPodInfo.Role,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			},
+		},
+	}
+
+	rb, err := r.clientSet.RbacV1().
+		RoleBindings(r.ArtifactPodInfo.Namespace).
+		Get(ctx, objMeta.Name, metav1.GetOptions{})
+	if rb == nil || apierrors.IsNotFound(err) {
+		_, err := r.clientSet.RbacV1().
+			RoleBindings(r.ArtifactPodInfo.Namespace).
+			Create(ctx, newrb, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
+// createRBAC creates a ServiceAccount, and a binding to the CopierRole so that
+// the container that copies the artifacts to the http server Pod has the
+// permissions to do so.
+func (r *OSArtifactReconciler) createRBAC(ctx context.Context, artifact buildv1alpha1.OSArtifact) error {
+	objMeta := genObjectMeta(artifact)
+
+	err := r.createCopierServiceAccount(ctx, objMeta)
+	if err != nil {
+		return errors.Wrap(err, "creating a service account")
+	}
+
+	err = r.createCopierRoleBinding(ctx, objMeta)
+	if err != nil {
+		return errors.Wrap(err, "creating a role binding for the copy-role")
+	}
+
+	return err
 }
