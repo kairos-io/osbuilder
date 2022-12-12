@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -28,6 +29,9 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 func genJobLabel(s string) map[string]string {
@@ -87,14 +91,15 @@ func createImageContainer(containerImage string, pushOptions buildv1alpha1.Push)
 }
 
 func createPushToServerImageContainer(containerImage string, artifactPodInfo ArtifactPodInfo) v1.Container {
+	command := fmt.Sprintf("tar cf - -C artifacts/ . | kubectl exec -i -n %s $(kubectl  get pods -l %s -n %s --no-headers -o custom-columns=\":metadata.name\" | head -n1) -- tar xf - -C %s", artifactPodInfo.Namespace, artifactPodInfo.Label, artifactPodInfo.Namespace, artifactPodInfo.Path)
+	fmt.Printf("command = %+v\n", command)
+
 	return v1.Container{
 		ImagePullPolicy: v1.PullAlways,
 		Name:            "push-to-server",
 		Image:           containerImage,
 		Command:         []string{"/bin/bash", "-cxe"},
-		Args: []string{
-			fmt.Sprintf("kubectl get pods -n %s", artifactPodInfo.Namespace),
-		},
+		Args:            []string{command},
 		VolumeMounts: []v1.VolumeMount{
 			{
 				Name:      "rootfs",
@@ -456,4 +461,71 @@ func (r *OSArtifactReconciler) createRBAC(ctx context.Context, artifact buildv1a
 	}
 
 	return err
+}
+
+// removeRBAC deletes the role binding between the service account of this artifact
+// and the CopierRole. The ServiceAccount is removed automatically through the Owner
+// relationship with the OSArtifact. The RoleBinding can't have it as an owner
+// because it is in a different Namespace.
+func (r *OSArtifactReconciler) removeRBAC(ctx context.Context, artifact buildv1alpha1.OSArtifact) error {
+	err := r.clientSet.RbacV1().RoleBindings(r.ArtifactPodInfo.Namespace).
+		Delete(ctx, artifact.Name, metav1.DeleteOptions{})
+	// Ignore not found. No need to do anything.
+	if err != nil && apierrors.IsNotFound(err) {
+		return nil
+	}
+
+	return err
+}
+
+func (r *OSArtifactReconciler) removeArtifacts(ctx context.Context, artifact buildv1alpha1.OSArtifact) error {
+	//Finding Pods using labels
+	fmt.Printf("r.ArtifactPodInfo = %+v\n", r.ArtifactPodInfo.Label)
+	pods, err := r.clientSet.CoreV1().Pods(r.ArtifactPodInfo.Namespace).
+		List(ctx, metav1.ListOptions{LabelSelector: r.ArtifactPodInfo.Label})
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("listing pods with label %s in namespace %s", r.ArtifactPodInfo.Label, r.ArtifactPodInfo.Namespace))
+	}
+	if len(pods.Items) < 1 {
+		return errors.New("No artifact pod found")
+	}
+	pod := pods.Items[0]
+
+	stdout, stderr, err := r.executeRemoteCommand(r.ArtifactPodInfo.Namespace, pod.Name, fmt.Sprintf("rm -rf %s/%s.*", r.ArtifactPodInfo.Path, artifact.Name))
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s\n%s", stdout, stderr))
+	}
+	return nil
+}
+
+func (r *OSArtifactReconciler) executeRemoteCommand(namespace, podName, command string) (string, string, error) {
+	buf := &bytes.Buffer{}
+	errBuf := &bytes.Buffer{}
+	request := r.clientSet.CoreV1().RESTClient().
+		Post().
+		Namespace(namespace).
+		Resource("pods").
+		Name(podName).
+		SubResource("exec").
+		VersionedParams(&v1.PodExecOptions{
+			Command: []string{"/bin/sh", "-c", command},
+			Stdin:   false,
+			Stdout:  true,
+			Stderr:  true,
+			TTY:     true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(r.restConfig, "POST", request.URL())
+	if err != nil {
+		return "", "", err
+	}
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: buf,
+		Stderr: errBuf,
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("%w Failed executing command %s on %v/%v", err, command, namespace, podName)
+	}
+
+	return buf.String(), errBuf.String(), nil
 }

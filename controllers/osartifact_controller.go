@@ -25,15 +25,18 @@ import (
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+const FinalizerName = "build.kairos.io/osbuilder-finalizer"
 
 type ArtifactPodInfo struct {
 	Label     string
@@ -46,6 +49,7 @@ type ArtifactPodInfo struct {
 type OSArtifactReconciler struct {
 	client.Client
 	Scheme                  *runtime.Scheme
+	restConfig              *rest.Config
 	clientSet               *kubernetes.Clientset
 	ServingImage, ToolImage string
 	ArtifactPodInfo         ArtifactPodInfo
@@ -73,6 +77,12 @@ func genOwner(artifact buildv1alpha1.OSArtifact) []metav1.OwnerReference {
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts/finalizers,verbs=update
 
+// TODO: Is this ^ how I should have created rbac permissions for the controller?
+//       - git commit all changes
+//       - generate code with kubebuilder
+//       - check if my permissions were removed
+//       - do it properly
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
@@ -95,17 +105,22 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	logger.Info(fmt.Sprintf("Reconciling %v", osbuild))
 
+	stop, err := r.handleFinalizer(ctx, &osbuild)
+	if err != nil || stop {
+		return ctrl.Result{}, err
+	}
+
 	// generate configmap required for building a custom image
 	desiredConfigMap := r.genConfigMap(osbuild)
 	logger.Info(fmt.Sprintf("Checking configmap %v", osbuild))
 
-	cfgMap, err := r.clientSet.CoreV1().ConfigMaps(req.Namespace).Get(ctx, desiredConfigMap.Name, v1.GetOptions{})
+	cfgMap, err := r.clientSet.CoreV1().ConfigMaps(req.Namespace).Get(ctx, desiredConfigMap.Name, metav1.GetOptions{})
 	if cfgMap == nil || apierrors.IsNotFound(err) {
-		logger.Info(fmt.Sprintf("Creating service %v", desiredConfigMap))
+		logger.Info(fmt.Sprintf("Creating config map %v", desiredConfigMap))
 
-		cfgMap, err = r.clientSet.CoreV1().ConfigMaps(req.Namespace).Create(ctx, desiredConfigMap, v1.CreateOptions{})
+		_, err = r.clientSet.CoreV1().ConfigMaps(req.Namespace).Create(ctx, desiredConfigMap, metav1.CreateOptions{})
 		if err != nil {
-			logger.Error(err, "Failed while creating svc")
+			logger.Error(err, "Failed while creating config map")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{Requeue: true}, err
@@ -116,27 +131,17 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	logger.Info(fmt.Sprintf("Checking deployment %v", osbuild))
 
-	// TODO: We need to create the Role in the namespace where the nginx Pod is,
-	// so that the copier container has permissions to copy to that Pod.
-	// The nginx Pod should be defined in the OSArtifact CRD as in "when done
-	// write the results in this Namespace:Pod, under this path".
-	// The controller will try to create RBAC with the proper permissions but
-	// Kubernetes requires us to have the permissions before we grant them to others.
-	// This means the controller should have these permissions already.
-	// Since we control the nginx, we can make it so but if the user specifies
-	// some other Pod it may fail. Also, every OSArtifact will have to specify
-	// the nginx Pod which makes it cumbersome.
 	err = r.createRBAC(ctx, osbuild)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
 	desiredJob := r.genJob(osbuild)
-	job, err := r.clientSet.BatchV1().Jobs(req.Namespace).Get(ctx, desiredJob.Name, v1.GetOptions{})
+	job, err := r.clientSet.BatchV1().Jobs(req.Namespace).Get(ctx, desiredJob.Name, metav1.GetOptions{})
 	if job == nil || apierrors.IsNotFound(err) {
 		logger.Info(fmt.Sprintf("Creating Job %v", job))
 
-		job, err = r.clientSet.BatchV1().Jobs(req.Namespace).Create(ctx, desiredJob, v1.CreateOptions{})
+		_, err = r.clientSet.BatchV1().Jobs(req.Namespace).Create(ctx, desiredJob, metav1.CreateOptions{})
 		if err != nil {
 			logger.Error(err, "Failed while creating job")
 			return ctrl.Result{}, nil
@@ -179,13 +184,66 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 // SetupWithManager sets up the controller with the Manager.
 func (r *OSArtifactReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	cfg := mgr.GetConfig()
+	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return err
 	}
+	r.restConfig = cfg
 	r.clientSet = clientset
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&buildv1alpha1.OSArtifact{}).
 		Complete(r)
+}
+
+// Returns true if reconciliation should stop or false otherwise
+func (r *OSArtifactReconciler) handleFinalizer(ctx context.Context, osbuild *buildv1alpha1.OSArtifact) (bool, error) {
+	// examine DeletionTimestamp to determine if object is under deletion
+	if osbuild.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(osbuild, FinalizerName) {
+			controllerutil.AddFinalizer(osbuild, FinalizerName)
+			if err := r.Update(ctx, osbuild); err != nil {
+				return true, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(osbuild, FinalizerName) {
+			// our finalizer is present, so lets handle any external dependency
+			if err := r.finalize(ctx, osbuild); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried
+				return true, err
+			}
+
+			// remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(osbuild, FinalizerName)
+			if err := r.Update(ctx, osbuild); err != nil {
+				return true, err
+			}
+		}
+
+		// Stop reconciliation as the item is being deleted
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// - Remove artifacts from the server Pod
+// - Delete role-binding (because it doesn't have the OSArtifact as an owner and won't be deleted automatically)
+func (r *OSArtifactReconciler) finalize(ctx context.Context, osbuild *buildv1alpha1.OSArtifact) error {
+	if err := r.removeRBAC(ctx, *osbuild); err != nil {
+		return err
+	}
+
+	if err := r.removeArtifacts(ctx, *osbuild); err != nil {
+		return err
+	}
+
+	return nil
 }
