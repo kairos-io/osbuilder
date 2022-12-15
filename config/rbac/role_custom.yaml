@@ -65,7 +65,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - services
   - configmaps
   verbs:
   - get
