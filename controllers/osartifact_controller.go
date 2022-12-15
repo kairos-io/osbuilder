@@ -25,22 +25,42 @@ import (
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+const FinalizerName = "build.kairos.io/osbuilder-finalizer"
+
+type ArtifactPodInfo struct {
+	Label     string
+	Namespace string
+	Path      string
+	Role      string
+}
 
 // OSArtifactReconciler reconciles a OSArtifact object
 type OSArtifactReconciler struct {
 	client.Client
-	Scheme                  *runtime.Scheme
-	clientSet               *kubernetes.Clientset
-	ServingImage, ToolImage string
+	Scheme                               *runtime.Scheme
+	restConfig                           *rest.Config
+	clientSet                            *kubernetes.Clientset
+	ServingImage, ToolImage, CopierImage string
+	ArtifactPodInfo                      ArtifactPodInfo
+}
+
+func genObjectMeta(artifact buildv1alpha1.OSArtifact) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:            artifact.Name,
+		Namespace:       artifact.Namespace,
+		OwnerReferences: genOwner(artifact),
+	}
 }
 
 func genOwner(artifact buildv1alpha1.OSArtifact) []metav1.OwnerReference {
@@ -56,6 +76,12 @@ func genOwner(artifact buildv1alpha1.OSArtifact) []metav1.OwnerReference {
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts/finalizers,verbs=update
+
+// TODO: Is this ^ how I should have created rbac permissions for the controller?
+//       - git commit all changes
+//       - generate code with kubebuilder
+//       - check if my permissions were removed
+//       - do it properly
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -79,17 +105,22 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	logger.Info(fmt.Sprintf("Reconciling %v", osbuild))
 
+	stop, err := r.handleFinalizer(ctx, &osbuild)
+	if err != nil || stop {
+		return ctrl.Result{}, err
+	}
+
 	// generate configmap required for building a custom image
 	desiredConfigMap := r.genConfigMap(osbuild)
 	logger.Info(fmt.Sprintf("Checking configmap %v", osbuild))
 
-	cfgMap, err := r.clientSet.CoreV1().ConfigMaps(req.Namespace).Get(ctx, desiredConfigMap.Name, v1.GetOptions{})
+	cfgMap, err := r.clientSet.CoreV1().ConfigMaps(req.Namespace).Get(ctx, desiredConfigMap.Name, metav1.GetOptions{})
 	if cfgMap == nil || apierrors.IsNotFound(err) {
-		logger.Info(fmt.Sprintf("Creating service %v", desiredConfigMap))
+		logger.Info(fmt.Sprintf("Creating config map %v", desiredConfigMap))
 
-		cfgMap, err = r.clientSet.CoreV1().ConfigMaps(req.Namespace).Create(ctx, desiredConfigMap, v1.CreateOptions{})
+		_, err = r.clientSet.CoreV1().ConfigMaps(req.Namespace).Create(ctx, desiredConfigMap, metav1.CreateOptions{})
 		if err != nil {
-			logger.Error(err, "Failed while creating svc")
+			logger.Error(err, "Failed while creating config map")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{Requeue: true}, err
@@ -98,34 +129,21 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	desiredService := genService(osbuild)
-	logger.Info(fmt.Sprintf("Checking service %v", osbuild))
-
-	svc, err := r.clientSet.CoreV1().Services(req.Namespace).Get(ctx, desiredService.Name, v1.GetOptions{})
-	if svc == nil || apierrors.IsNotFound(err) {
-		logger.Info(fmt.Sprintf("Creating service %v", desiredService))
-
-		svc, err = r.clientSet.CoreV1().Services(req.Namespace).Create(ctx, desiredService, v1.CreateOptions{})
-		if err != nil {
-			logger.Error(err, "Failed while creating svc")
-			return ctrl.Result{}, err
-		}
-
-		return ctrl.Result{Requeue: true}, err
-	}
-	if err != nil {
-		return ctrl.Result{Requeue: true}, err
-	}
 	logger.Info(fmt.Sprintf("Checking deployment %v", osbuild))
 
-	desiredDeployment := r.genDeployment(osbuild, svc)
-	deployment, err := r.clientSet.AppsV1().Deployments(req.Namespace).Get(ctx, desiredDeployment.Name, v1.GetOptions{})
-	if deployment == nil || apierrors.IsNotFound(err) {
-		logger.Info(fmt.Sprintf("Creating Deployment %v", deployment))
+	err = r.createRBAC(ctx, osbuild)
+	if err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
 
-		deployment, err = r.clientSet.AppsV1().Deployments(req.Namespace).Create(ctx, desiredDeployment, v1.CreateOptions{})
+	desiredJob := r.genJob(osbuild)
+	job, err := r.clientSet.BatchV1().Jobs(req.Namespace).Get(ctx, desiredJob.Name, metav1.GetOptions{})
+	if job == nil || apierrors.IsNotFound(err) {
+		logger.Info(fmt.Sprintf("Creating Job %v", job))
+
+		_, err = r.clientSet.BatchV1().Jobs(req.Namespace).Create(ctx, desiredJob, metav1.CreateOptions{})
 		if err != nil {
-			logger.Error(err, "Failed while creating deployment")
+			logger.Error(err, "Failed while creating job")
 			return ctrl.Result{}, nil
 		}
 
@@ -143,7 +161,7 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if deployment.Status.ReadyReplicas == deployment.Status.Replicas {
+	if job.Status.Succeeded > 0 {
 		copy.Status.Phase = "Ready"
 	} else if copy.Status.Phase != "Building" {
 		copy.Status.Phase = "Building"
@@ -166,13 +184,66 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 // SetupWithManager sets up the controller with the Manager.
 func (r *OSArtifactReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	cfg := mgr.GetConfig()
+	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return err
 	}
+	r.restConfig = cfg
 	r.clientSet = clientset
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&buildv1alpha1.OSArtifact{}).
 		Complete(r)
+}
+
+// Returns true if reconciliation should stop or false otherwise
+func (r *OSArtifactReconciler) handleFinalizer(ctx context.Context, osbuild *buildv1alpha1.OSArtifact) (bool, error) {
+	// examine DeletionTimestamp to determine if object is under deletion
+	if osbuild.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(osbuild, FinalizerName) {
+			controllerutil.AddFinalizer(osbuild, FinalizerName)
+			if err := r.Update(ctx, osbuild); err != nil {
+				return true, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(osbuild, FinalizerName) {
+			// our finalizer is present, so lets handle any external dependency
+			if err := r.finalize(ctx, osbuild); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried
+				return true, err
+			}
+
+			// remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(osbuild, FinalizerName)
+			if err := r.Update(ctx, osbuild); err != nil {
+				return true, err
+			}
+		}
+
+		// Stop reconciliation as the item is being deleted
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// - Remove artifacts from the server Pod
+// - Delete role-binding (because it doesn't have the OSArtifact as an owner and won't be deleted automatically)
+func (r *OSArtifactReconciler) finalize(ctx context.Context, osbuild *buildv1alpha1.OSArtifact) error {
+	if err := r.removeRBAC(ctx, *osbuild); err != nil {
+		return err
+	}
+
+	if err := r.removeArtifacts(ctx, *osbuild); err != nil {
+		return err
+	}
+
+	return nil
 }

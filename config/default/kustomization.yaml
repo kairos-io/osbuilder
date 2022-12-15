@@ -16,6 +16,7 @@ bases:
 - ../crd
 - ../rbac
 - ../manager
+- ../nginx
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
 # crd/kustomization.yaml
 #- ../webhook
@@ -72,3 +73,16 @@ vars:
 #    kind: Service
 #    version: v1
 #    name: webhook-service
+
+vars:
+- name: NGINX_NAMESPACE
+  objref:
+    kind: Namespace
+    name: system
+    apiVersion: v1 
+
+- name: ARTIFACT_COPIER_ROLE
+  objref:
+    kind: Role
+    name: artifactCopier
+    apiVersion: rbac.authorization.k8s.io/v1

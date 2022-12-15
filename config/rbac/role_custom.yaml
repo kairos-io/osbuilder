@@ -6,6 +6,31 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - "rbac.authorization.k8s.io"
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - build.kairos.io
   resources:
   - osartifacts
@@ -40,17 +65,30 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - services
   - configmaps
   verbs:
   - get
   - create
   - update
 - apiGroups:
-  - "apps"
+  - "batch"
   resources:
-  - deployments
+  - jobs
   verbs:
   - get
   - create
   - update
+# Temporary so that it can grant these permissions to the created role
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
