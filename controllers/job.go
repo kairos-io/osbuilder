@@ -326,7 +326,6 @@ func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv
 		pod.InitContainers = append(pod.InitContainers, buildGCECloudImageContainer)
 	}
 
-	// TODO: Shell out to `kubectl cp`? Why not?
 	// TODO: Does it make sense to build the image and not push it? Maybe remove
 	// this flag?
 	if pushImage {
@@ -334,9 +333,7 @@ func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv
 	}
 
 	pod.Containers = []v1.Container{
-		// TODO: Add kubectl to osbuilder-tools?
-		//createPushToServerImageContainer(r.ToolImage),
-		createPushToServerImageContainer("bitnami/kubectl", r.ArtifactPodInfo),
+		createPushToServerImageContainer(r.CopierImage, r.ArtifactPodInfo),
 	}
 
 	jobLabels := genJobLabel(artifact.Name)

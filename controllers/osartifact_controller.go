@@ -48,11 +48,11 @@ type ArtifactPodInfo struct {
 // OSArtifactReconciler reconciles a OSArtifact object
 type OSArtifactReconciler struct {
 	client.Client
-	Scheme                  *runtime.Scheme
-	restConfig              *rest.Config
-	clientSet               *kubernetes.Clientset
-	ServingImage, ToolImage string
-	ArtifactPodInfo         ArtifactPodInfo
+	Scheme                               *runtime.Scheme
+	restConfig                           *rest.Config
+	clientSet                            *kubernetes.Clientset
+	ServingImage, ToolImage, CopierImage string
+	ArtifactPodInfo                      ArtifactPodInfo
 }
 
 func genObjectMeta(artifact buildv1alpha1.OSArtifact) metav1.ObjectMeta {
