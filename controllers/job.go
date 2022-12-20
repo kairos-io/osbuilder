@@ -65,7 +65,11 @@ func unpackContainer(id, containerImage, pullImage string, pullOptions buildv1al
 	}
 }
 
-func createImageContainer(containerImage string, pushOptions buildv1alpha1.Push) v1.Container {
+func createImageContainer(containerImage string, artifact buildv1alpha1.OSArtifact) v1.Container {
+	imageName := "dontpush" // No image was defined, use a dummy one to let luet work
+	if artifact.Spec.PushOptions.ImageName != "" {
+		imageName = artifact.Spec.PushOptions.ImageName
+	}
 	return v1.Container{
 		ImagePullPolicy: v1.PullAlways,
 		Name:            "create-image",
@@ -73,8 +77,9 @@ func createImageContainer(containerImage string, pushOptions buildv1alpha1.Push)
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
 			fmt.Sprintf(
-				"tar -czvpf test.tar -C /rootfs . && luet util pack %s test.tar image.tar && mv image.tar /artifacts",
-				pushOptions.ImageName,
+				"tar -czvpf test.tar -C /rootfs . && luet util pack %[1]s test.tar %[2]s.tar && chmod +r %[2]s.tar && mv %[2]s.tar /artifacts",
+				imageName,
+				artifact.Name,
 			),
 		},
 		VolumeMounts: []v1.VolumeMount{
@@ -138,8 +143,6 @@ func osReleaseContainer(containerImage string) v1.Container {
 
 func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv1.Job {
 	objMeta := genObjectMeta(artifact)
-
-	pushImage := artifact.Spec.PushOptions.Push
 
 	privileged := false
 	serviceAccount := true
@@ -326,11 +329,7 @@ func (r *OSArtifactReconciler) genJob(artifact buildv1alpha1.OSArtifact) *batchv
 		pod.InitContainers = append(pod.InitContainers, buildGCECloudImageContainer)
 	}
 
-	// TODO: Does it make sense to build the image and not push it? Maybe remove
-	// this flag?
-	if pushImage {
-		pod.InitContainers = append(pod.InitContainers, createImageContainer(r.ToolImage, artifact.Spec.PushOptions))
-	}
+	pod.InitContainers = append(pod.InitContainers, createImageContainer(r.ToolImage, artifact))
 
 	pod.Containers = []v1.Container{
 		createPushToServerImageContainer(r.CopierImage, r.ArtifactPodInfo),
