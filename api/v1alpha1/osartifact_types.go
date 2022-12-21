@@ -49,7 +49,7 @@ type OSArtifactSpec struct {
 	Bundles     []string `json:"bundles,omitempty"`
 	PullOptions Pull     `json:"pull,omitempty"`
 	OSRelease   string   `json:"osRelease,omitempty"`
-	// TODO: Currently not used. Reseved to be used when we have a way to push to registries.
+	// TODO: Currently not used. Reserved to be used when we have a way to push to registries.
 	PushOptions Push `json:"push,omitempty"`
 }
 
