@@ -65,11 +65,17 @@ func unpackContainer(id, containerImage, pullImage string, pullOptions buildv1al
 	}
 }
 
-func createImageContainer(containerImage string, artifact buildv1alpha1.OSArtifact) v1.Container {
-	imageName := "dontpush" // No image was defined, use a dummy one to let luet work
-	if artifact.Spec.PushOptions.ImageName != "" {
-		imageName = artifact.Spec.PushOptions.ImageName
+func pushImageName(artifact buildv1alpha1.OSArtifact) string {
+	pushName := artifact.Spec.PushOptions.ImageName
+	if pushName != "" {
+		return pushName
 	}
+	return artifact.Name
+}
+
+func createImageContainer(containerImage string, artifact buildv1alpha1.OSArtifact) v1.Container {
+	imageName := pushImageName(artifact)
+
 	return v1.Container{
 		ImagePullPolicy: v1.PullAlways,
 		Name:            "create-image",
