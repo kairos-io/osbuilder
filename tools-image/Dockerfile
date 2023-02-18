@@ -82,6 +82,7 @@ COPY ./add-cloud-init.sh /add-cloud-init.sh
 # ARM helpers
 COPY ./build-arm-image.sh /build-arm-image.sh
 COPY ./arm /arm
+COPY ./prepare_arm_images.sh /prepare_arm_images.sh
 
 # RAW images helpers
 COPY ./gce.sh /gce.sh
