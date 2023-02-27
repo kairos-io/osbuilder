@@ -7,12 +7,13 @@ set -ex
 load_vars() {
 
   model=${MODEL:-odroid_c2}
-
+  use_lvm=${USE_LVM:-false}
   directory=${DIRECTORY:-}
   output_image="${OUTPUT_IMAGE:-arm.img}"
   # Img creation options. Size is in MB for all of the vars below
-  size="${SIZE:-7544}"
+  size="${SIZE:-7608}"
   state_size="${STATE_SIZE:-4992}"
+  oem_size="${OEM_SIZE:-64}"
   recovery_size="${RECOVERY_SIZE:-2192}"
   default_active_size="${DEFAULT_ACTIVE_SIZE:-2400}"
 
@@ -101,6 +102,7 @@ usage()
     echo " --directory: (optional) A directory which will be used for active/passive/recovery system"
     echo " --model: (optional) The board model"
     echo " --efi-dir: (optional) A directory with files which will be added to the efi partition"
+    echo " --use-lvm: (optional- no arguments) LVM will be used for the recovery and oem partitions and COS_OEM is enabled"
     exit 1
 }
 
@@ -186,6 +188,9 @@ while [ "$#" -gt 0 ]; do
         --repo-type)
             shift 1
             repo_type=$1
+            ;;
+        --use-lvm)
+            use_lvm=true
             ;;
         -h)
             usage
@@ -331,7 +336,11 @@ else
     sgdisk -n 1:8192:+16M -c 1:EFI -t 1:0700 ${output_image}
 fi
 sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
+if [ "$use_lvm" == 'false' ]; then
 sgdisk -n 3:0:+${recovery_size}M -c 3:recovery -t 3:8300 ${output_image}
+else 
+sgdisk -n 3:0:+$(( ${recovery_size} + ${oem_size} ))M -c 3:lvm -t 3:8e00 ${output_image}
+fi
 sgdisk -n 4:0:+64M -c 4:persistent -t 4:8300 ${output_image}
 
 sgdisk -m 1:2:3:4 ${output_image}
@@ -366,12 +375,25 @@ efi=${device}p1
 state=${device}p2
 recovery=${device}p3
 persistent=${device}p4
+oem_lv=/dev/mapper/KairosVG-oem
+recovery_lv=/dev/mapper/KairosVG-recovery
 
 # Create partitions (RECOVERY, STATE, COS_PERSISTENT)
 mkfs.vfat -F 32 ${efi}
 fatlabel ${efi} COS_GRUB
 
+if [ "$use_lvm" == 'false' ]; then
 mkfs.ext4 -F -L ${RECOVERY_LABEL} $recovery
+else
+pvcreate $recovery
+vgcreate KairosVG $recovery
+lvcreate -Z n -n oem -L ${oem_size} KairosVG
+lvcreate -Z n -n recovery -l 100%FREE KairosVG
+vgchange -ay
+vgmknodes
+mkfs.ext4 -F -L ${OEM_LABEL} $oem_lv
+mkfs.ext4 -F -L ${RECOVERY_LABEL} $recovery_lv
+fi
 mkfs.ext4 -F -L ${STATE_LABEL} $state
 mkfs.ext4 -F -L ${PERSISTENT_LABEL} $persistent
 
@@ -379,7 +401,11 @@ mkdir $WORKDIR/state
 mkdir $WORKDIR/recovery
 mkdir $WORKDIR/efi
 
+if [ "$use_lvm" == 'false' ]; then
 mount $recovery $WORKDIR/recovery
+else
+mount $recovery_lv $WORKDIR/recovery
+fi
 mount $state $WORKDIR/state
 mount $efi $WORKDIR/efi
 
@@ -407,6 +433,9 @@ umount $WORKDIR/recovery
 umount $WORKDIR/state
 umount $WORKDIR/efi
 
+if [ "$use_lvm" == 'true' ]; then
+vgchange -an
+fi
 sync
 
 # Flash uboot and vendor-specific bits
