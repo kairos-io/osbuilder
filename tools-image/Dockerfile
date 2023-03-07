@@ -10,8 +10,8 @@ FROM quay.io/luet/base:$LUET_VERSION AS luet
 ### 2) populate folders accordingly
 
 ## amd64 Live CD artifacts
-FROM quay.io/kairos/packages:grub2-livecd-0.0.4 AS grub2
-FROM quay.io/kairos/packages:grub2-efi-image-livecd-0.0.4 AS efi
+FROM quay.io/kairos/packages:grub2-livecd-0.0.6 AS grub2
+FROM quay.io/kairos/packages:grub2-efi-image-livecd-0.0.6 AS efi
 
 ## RPI64
 
