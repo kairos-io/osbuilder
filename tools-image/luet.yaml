@@ -12,7 +12,7 @@ repositories:
     priority: 2
     urls:
       - "quay.io/kairos/packages"
-    reference: 20230324073123-repository.yaml
+    reference: 20230413141357-repository.yaml
   - name: "kairos-arm64"
     description: "kairos repository arm64"
     type: "docker"
@@ -21,4 +21,4 @@ repositories:
     priority: 2
     urls:
       - "quay.io/kairos/packages-arm64"
-    reference: 20230324075000-repository.yaml
+    reference: 20230413142104-repository.yaml
