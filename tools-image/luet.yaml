@@ -1,0 +1,23 @@
+general:
+  debug: false
+  enable_emoji: true
+  spinner_charset: 9
+repositories:
+  - name: "kairos"
+    description: "kairos repository"
+    type: "docker"
+    arch: amd64
+    cached: true
+    priority: 2
+    urls:
+      - "quay.io/kairos/packages"
+    reference: 20230324073123-repository.yaml
+  - name: "kairos-arm64"
+    description: "kairos repository arm64"
+    type: "docker"
+    arch: arm64
+    cached: true
+    priority: 2
+    urls:
+      - "quay.io/kairos/packages-arm64"
+    reference: 20230324075000-repository.yaml
