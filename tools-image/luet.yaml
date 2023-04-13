@@ -1,7 +1,8 @@
 general:
   debug: false
-  enable_emoji: true
   spinner_charset: 9
+logging:
+  enable_emoji: false
 repositories:
   - name: "kairos"
     description: "kairos repository"

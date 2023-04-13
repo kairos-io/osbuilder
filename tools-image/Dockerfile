@@ -3,11 +3,18 @@ ARG LEAP_VERSION=15.4
 ARG LUET_VERSION=0.33.0
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 
-FROM opensuse/leap:$LEAP_VERSION as elemental-install
+FROM opensuse/leap:$LEAP_VERSION as luet-install
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 ENV LUET_NOLOCK=true
+ENV TMPDIR=/tmp
 COPY luet.yaml /etc/luet/luet.yaml
 RUN luet install -y system/elemental-cli
+RUN luet install -y livecd/grub2 --system-target /grub2
+RUN luet install -y livecd/grub2-efi-image --system-target /efi
+
+# remove luet tmp files. Side effect of setting the system-target is that it treats it as a root fs
+RUN rm -Rf /grub2/var
+RUN rm -Rf /efi/var
 
 ## amd64 Live CD artifacts
 FROM quay.io/kairos/packages:grub2-livecd-0.0.6 AS grub2
@@ -35,12 +42,12 @@ FROM quay.io/kairos/packages:grub-config-static-0.1  AS grub-raw-config
 FROM quay.io/kairos/packages:grub-artifacts-static-0.1   AS grub-raw-artifacts
 
 FROM opensuse/leap:$LEAP_VERSION
-COPY --from=elemental-install /usr/bin/elemental /usr/bin/elemental
+COPY --from=luet-install /usr/bin/elemental /usr/bin/elemental
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 
-# x86_64 ISOs
-COPY --from=grub2 / /grub2
-COPY --from=efi / /efi
+# ISO files
+COPY --from=luet-install /grub2 /grub2
+COPY --from=luet-install /efi /efi
 
 # RAW images
 COPY --from=grub-raw-efi / /raw/grub
