@@ -1,13 +1,13 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
-ARG ELEMENTAL_CLI_VERSION=0.20221121.1
 ARG LEAP_VERSION=15.4
 ARG LUET_VERSION=0.33.0
-FROM quay.io/kairos/packages:elemental-cli-system-$ELEMENTAL_CLI_VERSION AS elemental
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 
-### TODO: Replace those naked Dockerfiles copies with luet install so we can keep track of all versioning with 1 repository tag
-### 1) Add the kairos repository with a reference
-### 2) populate folders accordingly
+FROM opensuse/leap:$LEAP_VERSION as elemental-install
+COPY --from=luet /usr/bin/luet /usr/bin/luet
+ENV LUET_NOLOCK=true
+COPY luet.yaml /etc/luet/luet.yaml
+RUN luet install -y system/elemental-cli
 
 ## amd64 Live CD artifacts
 FROM quay.io/kairos/packages:grub2-livecd-0.0.6 AS grub2
@@ -35,7 +35,7 @@ FROM quay.io/kairos/packages:grub-config-static-0.1  AS grub-raw-config
 FROM quay.io/kairos/packages:grub-artifacts-static-0.1   AS grub-raw-artifacts
 
 FROM opensuse/leap:$LEAP_VERSION
-COPY --from=elemental /usr/bin/elemental /usr/bin/elemental
+COPY --from=elemental-install /usr/bin/elemental /usr/bin/elemental
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 
 # x86_64 ISOs
