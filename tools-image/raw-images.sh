@@ -10,6 +10,7 @@
 : "${OEM_LABEL:=COS_OEM}"
 : "${RECOVERY_LABEL:=COS_RECOVERY}"
 : "${EXTEND:=}"
+: "${RECOVERY_SIZE:=2048}"
 
 DIRECTORY=$1
 OUT=${2:-disk.raw}
@@ -34,7 +35,8 @@ mv recovery.squashfs /build/root/cOS/recovery.squashfs
 grub2-editenv /build/root/grub_oem_env set "default_menu_entry=Kairos"
 
 # Create a 2GB filesystem for RECOVERY including the contents for root (grub config and squasfs container)
-truncate -s $((2048*1024*1024)) rootfs.part
+# shellcheck disable=SC2004
+truncate -s $(($RECOVERY_SIZE*1024*1024)) rootfs.part
 mkfs.ext2 -L "${RECOVERY_LABEL}" -d /build/root rootfs.part
 
 # Create the EFI partition FAT16 and include the EFI image and a basic grub.cfg
