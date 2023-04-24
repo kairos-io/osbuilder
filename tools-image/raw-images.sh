@@ -78,4 +78,4 @@ fi
 sgdisk -n 1:2048:+2M -c 1:legacy -t 1:EF02 $OUT
 sgdisk -n 2:0:+20M -c 2:UEFI -t 2:EF00 $OUT
 sgdisk -n 3:0:+64M -c 3:oem -t 3:8300 $OUT
-sgdisk -n 4:0:+2048M -c 4:root -t 4:8300 $OUT
+sgdisk -n 4:0:+${RECOVERY_SIZE}M -c 4:root -t 4:8300 $OUT
