@@ -19,230 +19,286 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"time"
-
-	buildv1alpha1 "github.com/kairos-io/osbuilder/api/v1alpha1"
-	"github.com/pkg/errors"
+	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/cluster-api/util/patch"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-const FinalizerName = "build.kairos.io/osbuilder-finalizer"
-
-type ArtifactPodInfo struct {
-	Label     string
-	Namespace string
-	Path      string
-	Role      string
-}
+const (
+	FinalizerName                   = "build.kairos.io/osbuilder-finalizer"
+	artifactLabel                   = "build.kairos.io/artifact"
+	artifactExporterIndexAnnotation = "build.kairos.io/export-index"
+)
 
 // OSArtifactReconciler reconciles a OSArtifact object
 type OSArtifactReconciler struct {
 	client.Client
-	Scheme                               *runtime.Scheme
-	restConfig                           *rest.Config
-	clientSet                            *kubernetes.Clientset
 	ServingImage, ToolImage, CopierImage string
-	ArtifactPodInfo                      ArtifactPodInfo
 }
 
-func genObjectMeta(artifact buildv1alpha1.OSArtifact) metav1.ObjectMeta {
-	return metav1.ObjectMeta{
-		Name:            artifact.Name,
-		Namespace:       artifact.Namespace,
-		OwnerReferences: genOwner(artifact),
-	}
-}
+func (r *OSArtifactReconciler) InjectClient(c client.Client) error {
+	r.Client = c
 
-func genOwner(artifact buildv1alpha1.OSArtifact) []metav1.OwnerReference {
-	return []metav1.OwnerReference{
-		*metav1.NewControllerRef(&artifact.ObjectMeta, schema.GroupVersionKind{
-			Group:   buildv1alpha1.GroupVersion.Group,
-			Version: buildv1alpha1.GroupVersion.Version,
-			Kind:    "OSArtifact",
-		}),
-	}
+	return nil
 }
 
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts/finalizers,verbs=update
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;delete
+//+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;create;delete;watch
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;
+//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;create;
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;delete
 
-// TODO: Is this ^ how I should have created rbac permissions for the controller?
-//       - git commit all changes
-//       - generate code with kubebuilder
-//       - check if my permissions were removed
-//       - do it properly
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the OSArtifact object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var osbuild buildv1alpha1.OSArtifact
-	if err := r.Get(ctx, req.NamespacedName, &osbuild); err != nil {
+	var artifact osbuilder.OSArtifact
+	if err := r.Get(ctx, req.NamespacedName, &artifact); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
-	logger.Info(fmt.Sprintf("Reconciling %v", osbuild))
-
-	stop, err := r.handleFinalizer(ctx, &osbuild)
-	if err != nil || stop {
-		return ctrl.Result{}, err
+	if artifact.DeletionTimestamp != nil {
+		controllerutil.RemoveFinalizer(&artifact, FinalizerName)
+		return ctrl.Result{}, r.Update(ctx, &artifact)
 	}
 
-	// generate configmap required for building a custom image
-	desiredConfigMap := r.genConfigMap(osbuild)
-	logger.Info(fmt.Sprintf("Checking configmap %v", osbuild))
-
-	cfgMap, err := r.clientSet.CoreV1().ConfigMaps(req.Namespace).Get(ctx, desiredConfigMap.Name, metav1.GetOptions{})
-	if cfgMap == nil || apierrors.IsNotFound(err) {
-		logger.Info(fmt.Sprintf("Creating config map %v", desiredConfigMap))
-
-		_, err = r.clientSet.CoreV1().ConfigMaps(req.Namespace).Create(ctx, desiredConfigMap, metav1.CreateOptions{})
-		if err != nil {
-			logger.Error(err, "Failed while creating config map")
-			return ctrl.Result{}, err
+	if !controllerutil.ContainsFinalizer(&artifact, FinalizerName) {
+		controllerutil.AddFinalizer(&artifact, FinalizerName)
+		if err := r.Update(ctx, &artifact); err != nil {
+			return ctrl.Result{Requeue: true}, err
 		}
-		return ctrl.Result{Requeue: true}, err
-	}
-	if err != nil {
-		return ctrl.Result{Requeue: true}, err
 	}
 
-	logger.Info(fmt.Sprintf("Checking deployment %v", osbuild))
+	logger.Info(fmt.Sprintf("Reconciling %s/%s", artifact.Namespace, artifact.Name))
 
-	err = r.createRBAC(ctx, osbuild)
-	if err != nil {
+	switch artifact.Status.Phase {
+	case osbuilder.Exporting:
+		return r.checkExport(ctx, &artifact)
+	case osbuilder.Ready, osbuilder.Error:
+		return ctrl.Result{}, nil
+	default:
+		return r.checkBuild(ctx, &artifact)
+	}
+}
+
+func (r *OSArtifactReconciler) startBuild(ctx context.Context, artifact *osbuilder.OSArtifact) (ctrl.Result, error) {
+	// generate configmap required for building a custom image
+	cm := r.genConfigMap(artifact)
+	if cm.Labels == nil {
+		cm.Labels = map[string]string{}
+	}
+	cm.Labels[artifactLabel] = artifact.Name
+	if err := controllerutil.SetOwnerReference(artifact, cm, r.Scheme()); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+	if err := r.Create(ctx, cm); err != nil && !apierrors.IsAlreadyExists(err) {
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	desiredJob := r.genJob(osbuild)
-	job, err := r.clientSet.BatchV1().Jobs(req.Namespace).Get(ctx, desiredJob.Name, metav1.GetOptions{})
-	if job == nil || apierrors.IsNotFound(err) {
-		logger.Info(fmt.Sprintf("Creating Job %v", job))
+	pvc := r.newArtifactPVC(artifact)
+	if pvc.Labels == nil {
+		pvc.Labels = map[string]string{}
+	}
+	pvc.Labels[artifactLabel] = artifact.Name
+	if err := controllerutil.SetOwnerReference(artifact, pvc, r.Scheme()); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+	if err := r.Create(ctx, pvc); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
 
-		_, err = r.clientSet.BatchV1().Jobs(req.Namespace).Create(ctx, desiredJob, metav1.CreateOptions{})
-		if err != nil {
-			logger.Error(err, "Failed while creating job")
+	pod := r.newBuilderPod(pvc.Name, artifact)
+	if pod.Labels == nil {
+		pod.Labels = map[string]string{}
+	}
+	pod.Labels[artifactLabel] = artifact.Name
+	if err := controllerutil.SetOwnerReference(artifact, pod, r.Scheme()); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+	if err := r.Create(ctx, pod); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	artifact.Status.Phase = osbuilder.Building
+	if err := r.Status().Update(ctx, artifact); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *OSArtifactReconciler) checkBuild(ctx context.Context, artifact *osbuilder.OSArtifact) (ctrl.Result, error) {
+	var pods corev1.PodList
+	if err := r.List(ctx, &pods, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			artifactLabel: artifact.Name,
+		}),
+	}); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	for _, pod := range pods.Items {
+		switch pod.Status.Phase {
+		case corev1.PodSucceeded:
+			artifact.Status.Phase = osbuilder.Exporting
+			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, artifact)
+		case corev1.PodFailed:
+			artifact.Status.Phase = osbuilder.Error
+			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, artifact)
+		case corev1.PodPending, corev1.PodRunning:
 			return ctrl.Result{}, nil
 		}
-
-		return ctrl.Result{Requeue: true}, nil
 	}
-	if err != nil {
+
+	return r.startBuild(ctx, artifact)
+}
+
+func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuilder.OSArtifact) (ctrl.Result, error) {
+	var jobs batchv1.JobList
+	if err := r.List(ctx, &jobs, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			artifactLabel: artifact.Name,
+		}),
+	}); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	logger.Info(fmt.Sprintf("Updating state %v", osbuild))
-
-	copy := osbuild.DeepCopy()
-
-	helper, err := patch.NewHelper(&osbuild, r.Client)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	if job.Status.Succeeded > 0 {
-		copy.Status.Phase = "Ready"
-	} else if copy.Status.Phase != "Building" {
-		copy.Status.Phase = "Building"
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
-	defer cancel()
-	if err := helper.Patch(ctx, copy); err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "couldn't patch osbuild %q", copy.Name)
+	indexedJobs := make(map[string]*batchv1.Job, len(artifact.Spec.Exporters))
+	for _, job := range jobs.Items {
+		if job.GetAnnotations() != nil {
+			if idx, ok := job.GetAnnotations()[artifactExporterIndexAnnotation]; ok {
+				indexedJobs[idx] = &job
+			}
+		}
 	}
 
-	// for _, c := range append(pod.Status.ContainerStatuses, pod.Status.InitContainerStatuses...) {
-	// 	if c.State.Terminated != nil && c.State.Terminated.ExitCode != 0 {
-	// 		packageBuildCopy.Status.State = "Failed"
-	// 	}
-	// }
+	var pvcs corev1.PersistentVolumeClaimList
+	var pvc *corev1.PersistentVolumeClaim
+	if err := r.List(ctx, &pvcs, &client.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set{artifactLabel: artifact.Name})}); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	for _, item := range pvcs.Items {
+		pvc = &item
+		break
+	}
+
+	if pvc == nil {
+		log.FromContext(ctx).Error(nil, "failed to locate pvc for artifact, this should not happen")
+		return ctrl.Result{}, fmt.Errorf("failed to locate artifact pvc")
+	}
+
+	var succeeded int
+	for i := range artifact.Spec.Exporters {
+		idx := fmt.Sprintf("%d", i)
+
+		job := indexedJobs[idx]
+		if job == nil {
+			job = &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("%s-export-%s", artifact.Name, idx),
+					Namespace: artifact.Namespace,
+					Annotations: map[string]string{
+						artifactExporterIndexAnnotation: idx,
+					},
+					Labels: map[string]string{
+						artifactLabel: artifact.Name,
+					},
+				},
+				Spec: artifact.Spec.Exporters[i],
+			}
+
+			job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
+				Name: "artifacts",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: pvc.Name,
+						ReadOnly:  true,
+					},
+				},
+			})
+
+			if err := controllerutil.SetOwnerReference(artifact, job, r.Scheme()); err != nil {
+				return ctrl.Result{Requeue: true}, err
+			}
+
+			if err := r.Create(ctx, job); err != nil {
+				return ctrl.Result{Requeue: true}, err
+			}
+
+		} else if job.Spec.Completions == nil || *job.Spec.Completions == 1 {
+			if job.Status.Succeeded > 0 {
+				succeeded++
+			}
+		} else if *job.Spec.BackoffLimit <= job.Status.Failed {
+			artifact.Status.Phase = osbuilder.Error
+			if err := r.Status().Update(ctx, artifact); err != nil {
+				return ctrl.Result{Requeue: true}, err
+			}
+			break
+		}
+	}
+
+	if succeeded == len(artifact.Spec.Exporters) {
+		artifact.Status.Phase = osbuilder.Ready
+		if err := r.Status().Update(ctx, artifact); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
+	}
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *OSArtifactReconciler) SetupWithManager(mgr ctrl.Manager) error {
-
-	cfg := mgr.GetConfig()
-	clientset, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-	r.restConfig = cfg
-	r.clientSet = clientset
-
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&buildv1alpha1.OSArtifact{}).
+		For(&osbuilder.OSArtifact{}).
+		Owns(&osbuilder.OSArtifact{}).
+		Watches(
+			&source.Kind{Type: &corev1.Pod{}},
+			handler.EnqueueRequestsFromMapFunc(r.findOwningArtifact),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&source.Kind{Type: &batchv1.Job{}},
+			handler.EnqueueRequestsFromMapFunc(r.findOwningArtifact),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
 }
 
-// Returns true if reconciliation should stop or false otherwise
-func (r *OSArtifactReconciler) handleFinalizer(ctx context.Context, osbuild *buildv1alpha1.OSArtifact) (bool, error) {
-	// examine DeletionTimestamp to determine if object is under deletion
-	if osbuild.DeletionTimestamp.IsZero() {
-		// The object is not being deleted, so if it does not have our finalizer,
-		// then lets add the finalizer and update the object. This is equivalent
-		// registering our finalizer.
-		if !controllerutil.ContainsFinalizer(osbuild, FinalizerName) {
-			controllerutil.AddFinalizer(osbuild, FinalizerName)
-			if err := r.Update(ctx, osbuild); err != nil {
-				return true, err
-			}
-		}
-	} else {
-		// The object is being deleted
-		if controllerutil.ContainsFinalizer(osbuild, FinalizerName) {
-			// our finalizer is present, so lets handle any external dependency
-			if err := r.finalize(ctx, osbuild); err != nil {
-				// if fail to delete the external dependency here, return with error
-				// so that it can be retried
-				return true, err
-			}
-
-			// remove our finalizer from the list and update it.
-			controllerutil.RemoveFinalizer(osbuild, FinalizerName)
-			if err := r.Update(ctx, osbuild); err != nil {
-				return true, err
-			}
-		}
-
-		// Stop reconciliation as the item is being deleted
-		return true, nil
+func (r *OSArtifactReconciler) findOwningArtifact(obj client.Object) []reconcile.Request {
+	if obj.GetLabels() == nil {
+		return nil
 	}
 
-	return false, nil
-}
-
-// - Remove artifacts from the server Pod
-// - Delete role-binding (because it doesn't have the OSArtifact as an owner and won't be deleted automatically)
-func (r *OSArtifactReconciler) finalize(ctx context.Context, osbuild *buildv1alpha1.OSArtifact) error {
-	if err := r.removeRBAC(ctx, *osbuild); err != nil {
-		return err
-	}
-
-	if err := r.removeArtifacts(ctx, *osbuild); err != nil {
-		return err
+	if artifactName, ok := obj.GetLabels()[artifactLabel]; ok {
+		return []reconcile.Request{
+			{
+				NamespacedName: types.NamespacedName{
+					Name:      artifactName,
+					Namespace: obj.GetNamespace(),
+				},
+			},
+		}
 	}
 
 	return nil

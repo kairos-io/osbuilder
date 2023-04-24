@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	buildv1alpha1 "github.com/kairos-io/osbuilder/api/v1alpha1"
+	buildv1alpha2 "github.com/kairos-io/osbuilder/api/v1alpha2"
 	"github.com/kairos-io/osbuilder/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -44,7 +44,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(buildv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(buildv1alpha2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -105,17 +105,9 @@ func main() {
 	}
 
 	if err = (&controllers.OSArtifactReconciler{
-		Client:       mgr.GetClient(),
 		ServingImage: serveImage,
 		ToolImage:    toolImage,
 		CopierImage:  copierImage,
-		ArtifactPodInfo: controllers.ArtifactPodInfo{
-			Label:     copyToPodLabel,
-			Namespace: copyToNamespace,
-			Path:      copyToPath,
-			Role:      copierRole,
-		},
-		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OSArtifact")
 		os.Exit(1)

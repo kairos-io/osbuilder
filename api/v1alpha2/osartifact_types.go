@@ -14,23 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // OSArtifactSpec defines the desired state of OSArtifact
 type OSArtifactSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of OSArtifact. Edit osartifact_types.go to remove/update
 	ImageName string `json:"imageName,omitempty"`
-	// This needs to be revisited
+
 	ISO bool `json:"iso,omitempty"`
 
 	//Disk-only stuff
@@ -42,47 +37,42 @@ type OSArtifactSpec struct {
 	Netboot    bool   `json:"netboot,omitempty"`
 	NetbootURL string `json:"netbootURL,omitempty"`
 
-	// TODO: treat cloudconfig as a secret, and take a secretRef where to store it (optionally)
-	CloudConfig string `json:"cloudConfig,omitempty"`
-	GRUBConfig  string `json:"grubConfig,omitempty"`
+	CloudConfigRef *SecretKeySelector `json:"cloudConfigRef,omitempty"`
+	GRUBConfig     string             `json:"grubConfig,omitempty"`
 
-	Bundles     []string `json:"bundles,omitempty"`
-	PullOptions Pull     `json:"pull,omitempty"`
-	OSRelease   string   `json:"osRelease,omitempty"`
-	// TODO: Currently not used. Reserved to be used when we have a way to push to registries.
-	PushOptions Push `json:"push,omitempty"`
-}
+	Bundles   []string `json:"bundles,omitempty"`
+	OSRelease string   `json:"osRelease,omitempty"`
 
-type Push struct {
-	Push                         bool               `json:"push,omitempty"`
-	ImageName                    string             `json:"imageName,omitempty"`
-	ContainerRegistryCredentials *SecretKeySelector `json:"containerRegistryCredentials,omitempty"`
-}
-
-type Pull struct {
-	ContainerRegistryCredentials *SecretKeySelector `json:"containerRegistryCredentials,omitempty"`
-}
-type LocalObjectReference struct {
-	Name string `json:"name"`
+	ImagePullSecrets []corev1.LocalObjectReference     `json:"imagePullSecrets,omitempty"`
+	Exporters        []batchv1.JobSpec                 `json:"exporter,omitempty"`
+	Volume           *corev1.PersistentVolumeClaimSpec `json:"volume,omitempty"`
 }
 
 type SecretKeySelector struct {
-	LocalObjectReference `json:",inline"`
-	// +optional
-	Namespace string `json:"namespace,omitempty"`
+	Name string `json:"name"`
 	// +optional
 	Key string `json:"key,omitempty"`
 }
 
+type ArtifactPhase string
+
+const (
+	Pending   = "Pending"
+	Building  = "Building"
+	Exporting = "Exporting"
+	Ready     = "Ready"
+	Error     = "Error"
+)
+
 // OSArtifactStatus defines the observed state of OSArtifact
 type OSArtifactStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	Phase string `json:"phase,omitempty"`
+	// +kubebuilder:default=Pending
+	Phase ArtifactPhase `json:"phase,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 
 // OSArtifact is the Schema for the osartifacts API
 type OSArtifact struct {
