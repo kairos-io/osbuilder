@@ -216,7 +216,7 @@ else
     container_image=${CONTAINER_IMAGE:-quay.io/costoolkit/examples:odroid-c2-latest}
 fi
 
-if [ -n "$cos_config"] && [ -e "$cos_config" ]; then
+if [ -n "$cos_config" ] && [ -e "$cos_config" ]; then
   source "$cos_config"
 fi
 
@@ -441,6 +441,10 @@ sync
 # Flash uboot and vendor-specific bits
 echo ">> Performing $model specific bits.."
 /arm/boards/$model.sh ${DRIVE}
+
+sync
+sleep 5
+sync
 
 kpartx -dv $DRIVE
 
