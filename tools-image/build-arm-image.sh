@@ -446,7 +446,7 @@ sync
 sleep 5
 sync
 
-kpartx -dv $DRIVE
+kpartx -dv $DRIVE || true
 
 umount $DRIVE || true
 
