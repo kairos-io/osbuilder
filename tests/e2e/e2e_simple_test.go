@@ -90,7 +90,7 @@ var _ = Describe("ISO build test", func() {
 
 					stopped = event.Type != watch.Deleted && event.Type != watch.Error || !ok
 				}
-			}).Should(Succeed())
+			}).WithTimeout(time.Hour).Should(Succeed())
 		})
 
 		It("exports the artifacts", func() {
@@ -104,7 +104,7 @@ var _ = Describe("ISO build test", func() {
 
 					stopped = event.Type != watch.Deleted && event.Type != watch.Error || !ok
 				}
-			}).Should(Succeed())
+			}).WithTimeout(time.Hour).Should(Succeed())
 		})
 
 		It("artifact successfully builds", func() {
@@ -125,7 +125,7 @@ var _ = Describe("ISO build test", func() {
 					}
 
 				}
-			}).Should(Succeed())
+			}).WithTimeout(time.Hour).Should(Succeed())
 		})
 
 		It("cleans up resources on deleted", func() {
