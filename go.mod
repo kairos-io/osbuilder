@@ -10,7 +10,7 @@ require (
 	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20220614101555-2eddf3b113e2
 	k8s.io/api v0.24.0
 	k8s.io/apimachinery v0.24.0
-	k8s.io/client-go v0.24.0
+	k8s.io/client-go v11.0.0+incompatible
 	sigs.k8s.io/cluster-api v1.1.4
 	sigs.k8s.io/controller-runtime v0.12.1
 )
