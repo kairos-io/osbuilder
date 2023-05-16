@@ -1,4 +1,4 @@
-
+#cloud-config
 name: "Default user"
 stages:
    initramfs:
