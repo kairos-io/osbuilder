@@ -283,6 +283,11 @@ else
   rsync -axq --exclude='host' --exclude='mnt' --exclude='proc' --exclude='sys' --exclude='dev' --exclude='tmp' ${directory}/ $TARGET
 fi
 
+# We copy the grubmenu.cfg to a temporary location to be copied later in the state partition
+# This is a hack and we need a better way: https://github.com/kairos-io/kairos/issues/1427
+tmpgrubconfig=$(mktemp /tmp/grubmeny.cfg.XXXXXX)
+cp -rfv $TARGET/etc/kairos/branding/grubmenu.cfg "${tmpgrubconfig}"
+
 umount $TARGET
 sync
 
@@ -327,6 +332,8 @@ if [ -n "$EFI" ] && [  -n "$efi_dir" ]; then
   echo "Copy $efi_dir to EFI directory"
   cp -rfv $efi_dir/* $EFI
 fi
+
+partprobe
 
 echo ">> Writing image and partition table"
 dd if=/dev/zero of="${output_image}" bs=1024000 count="${size}" || exit 1
@@ -416,6 +423,9 @@ mkdir -p $WORKDIR/persistent/cloud-config
 cp -rfv /defaults.yaml $WORKDIR/persistent/cloud-config/01_defaults.yaml
 
 grub2-editenv $WORKDIR/state/grub_oem_env set "default_menu_entry=Kairos"
+
+# We copy the file we saved earier to the STATE partition
+cp -rfv "${tmpgrubconfig}" $WORKDIR/state/grubmenu
 
 # Set a OEM config file if specified
 if [ -n "$config" ]; then
