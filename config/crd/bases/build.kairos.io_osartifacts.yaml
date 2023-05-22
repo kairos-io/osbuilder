@@ -59,7 +59,7 @@ spec:
               diskSize:
                 description: Disk-only stuff
                 type: string
-              exporter:
+              exporters:
                 items:
                   description: JobSpec describes how the job execution will look like.
                   properties:

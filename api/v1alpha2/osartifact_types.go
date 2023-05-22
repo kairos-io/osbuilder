@@ -44,7 +44,7 @@ type OSArtifactSpec struct {
 	OSRelease string   `json:"osRelease,omitempty"`
 
 	ImagePullSecrets []corev1.LocalObjectReference     `json:"imagePullSecrets,omitempty"`
-	Exporters        []batchv1.JobSpec                 `json:"exporter,omitempty"`
+	Exporters        []batchv1.JobSpec                 `json:"exporters,omitempty"`
 	Volume           *corev1.PersistentVolumeClaimSpec `json:"volume,omitempty"`
 }
 

@@ -114,7 +114,7 @@ func (r *OSArtifactReconciler) newArtifactPVC(artifact *osbuilder.OSArtifact) *c
 			},
 			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
-					"storage": resource.MustParse("2Gi"),
+					"storage": resource.MustParse("10Gi"),
 				},
 			},
 		}
