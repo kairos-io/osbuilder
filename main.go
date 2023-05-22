@@ -53,20 +53,11 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var serveImage, toolImage, copierImage string
-	var copyToPodLabel, copyToNamespace, copyToPath, copierRole string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 
-	flag.StringVar(&copierImage, "copier-image", "quay.io/kairos/kubectl", "The image that is used to copy artifacts to the server pod.")
-	flag.StringVar(&serveImage, "serve-image", "nginx", "Serve image.")
 	// It needs luet inside
 	flag.StringVar(&toolImage, "tool-image", "quay.io/kairos/osbuilder-tools:latest", "Tool image.")
-
-	// Information on where to copy the artifacts
-	flag.StringVar(&copyToPodLabel, "copy-to-pod-label", "", "The label of the Pod to which artifacts should be copied.")
-	flag.StringVar(&copyToNamespace, "copy-to-namespace", "", "The namespace of the copy-to-pod-label Pod.")
-	flag.StringVar(&copyToPath, "copy-to-path", "", "The path under which to copy artifacts in the copy-to-pod-label Pod.")
-	flag.StringVar(&copierRole, "copy-role", "", "The name or the Kubernetes Role that has the permissions to copy artifacts to the copy-to-pod-label Pod")
 
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
