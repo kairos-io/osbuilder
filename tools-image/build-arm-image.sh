@@ -103,6 +103,7 @@ usage()
     echo " --model: (optional) The board model"
     echo " --efi-dir: (optional) A directory with files which will be added to the efi partition"
     echo " --disable-lvm: (optional- no arguments) LVM for the recovery and oem partitions will be disabled"
+    echo " --use-lvm: (deprecated and ignored. Kept for backwards compatibility)"
     exit 1
 }
 
@@ -191,6 +192,9 @@ while [ "$#" -gt 0 ]; do
             ;;
         --disable-lvm)
             disable_lvm=true
+            ;;
+        --use-lvm)
+            disable_lvm=false
             ;;
         -h)
             usage
