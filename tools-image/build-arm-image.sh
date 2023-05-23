@@ -7,7 +7,7 @@ set -ex
 load_vars() {
 
   model=${MODEL:-odroid_c2}
-  use_lvm=${USE_LVM:-false}
+  disable_lvm=${DISABLE_LVM:-false}
   directory=${DIRECTORY:-}
   output_image="${OUTPUT_IMAGE:-arm.img}"
   # Img creation options. Size is in MB for all of the vars below
@@ -102,7 +102,7 @@ usage()
     echo " --directory: (optional) A directory which will be used for active/passive/recovery system"
     echo " --model: (optional) The board model"
     echo " --efi-dir: (optional) A directory with files which will be added to the efi partition"
-    echo " --use-lvm: (optional- no arguments) LVM will be used for the recovery and oem partitions and COS_OEM is enabled"
+    echo " --disable-lvm: (optional- no arguments) LVM for the recovery and oem partitions will be disabled"
     exit 1
 }
 
@@ -189,8 +189,8 @@ while [ "$#" -gt 0 ]; do
             shift 1
             repo_type=$1
             ;;
-        --use-lvm)
-            use_lvm=true
+        --disable-lvm)
+            disable_lvm=true
             ;;
         -h)
             usage
@@ -336,7 +336,7 @@ else
     sgdisk -n 1:8192:+16M -c 1:EFI -t 1:0700 ${output_image}
 fi
 sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
-if [ "$use_lvm" == 'false' ]; then
+if [ "$disable_lvm" == 'true' ]; then
 sgdisk -n 3:0:+${recovery_size}M -c 3:recovery -t 3:8300 ${output_image}
 else 
 sgdisk -n 3:0:+$(( ${recovery_size} + ${oem_size} ))M -c 3:lvm -t 3:8e00 ${output_image}
@@ -382,7 +382,7 @@ recovery_lv=/dev/mapper/KairosVG-recovery
 mkfs.vfat -F 32 ${efi}
 fatlabel ${efi} COS_GRUB
 
-if [ "$use_lvm" == 'false' ]; then
+if [ "$disable_lvm" == 'true' ]; then
 mkfs.ext4 -F -L ${RECOVERY_LABEL} $recovery
 else
 pvcreate $recovery
@@ -401,7 +401,7 @@ mkdir $WORKDIR/state
 mkdir $WORKDIR/recovery
 mkdir $WORKDIR/efi
 
-if [ "$use_lvm" == 'false' ]; then
+if [ "$disable_lvm" == 'true' ]; then
 mount $recovery $WORKDIR/recovery
 else
 mount $recovery_lv $WORKDIR/recovery
@@ -433,7 +433,7 @@ umount $WORKDIR/recovery
 umount $WORKDIR/state
 umount $WORKDIR/efi
 
-if [ "$use_lvm" == 'true' ]; then
+if [ "$disable_lvm" == 'false' ]; then
 vgchange -an
 fi
 sync
