@@ -1,4 +1,5 @@
 #cloud-config
+config_url: "http://169.254.169.254/cloud-config.yaml"
 name: "Default user"
 stages:
    initramfs:
