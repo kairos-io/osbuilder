@@ -446,6 +446,8 @@ sync
 echo ">> Performing $model specific bits.."
 /arm/boards/$model.sh ${DRIVE}
 
+dmsetup remove $DRIVE
+
 sync
 sleep 5
 sync
