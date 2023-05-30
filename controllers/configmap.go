@@ -17,22 +17,19 @@ limitations under the License.
 package controllers
 
 import (
-	buildv1alpha1 "github.com/kairos-io/osbuilder/api/v1alpha1"
+	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	v1 "k8s.io/api/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (r *OSArtifactReconciler) genConfigMap(artifact buildv1alpha1.OSArtifact) *v1.ConfigMap {
+func (r *OSArtifactReconciler) genConfigMap(artifact *osbuilder.OSArtifact) *v1.ConfigMap {
 	return &v1.ConfigMap{
-
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            artifact.Name,
-			Namespace:       artifact.Namespace,
-			OwnerReferences: genOwner(artifact),
+			Name:      artifact.Name,
+			Namespace: artifact.Namespace,
 		},
 		Data: map[string]string{
-			"config":     artifact.Spec.CloudConfig,
 			"grub.cfg":   artifact.Spec.GRUBConfig,
 			"os-release": artifact.Spec.OSRelease,
 		}}

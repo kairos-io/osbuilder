@@ -1,114 +1,157 @@
 package e2e_test
 
 import (
-	"bytes"
-	"fmt"
-	"os/exec"
-	"strings"
-	"time"
-
+	"context"
+	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	kubectl "github.com/rancher-sandbox/ele-testhelpers/kubectl"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"time"
 )
 
 var _ = Describe("ISO build test", func() {
-	//k := kubectl.New()
-	Context("registration", func() {
+	k8s := dynamic.NewForConfigOrDie(ctrl.GetConfigOrDie())
+	scheme := runtime.NewScheme()
+	_ = osbuilder.AddToScheme(scheme)
 
-		AfterEach(func() {
-			kubectl.New().Delete("osartifacts", "-n", "default", "hello-kairos")
+	var artifactName string
+	artifacts := k8s.Resource(schema.GroupVersionResource{Group: osbuilder.GroupVersion.Group, Version: osbuilder.GroupVersion.Version, Resource: "osartifacts"}).Namespace("default")
+	pods := k8s.Resource(schema.GroupVersionResource{Group: corev1.GroupName, Version: corev1.SchemeGroupVersion.Version, Resource: "pods"}).Namespace("default")
+	pvcs := k8s.Resource(schema.GroupVersionResource{Group: corev1.GroupName, Version: corev1.SchemeGroupVersion.Version, Resource: "persistentvolumeclaims"}).Namespace("default")
+	jobs := k8s.Resource(schema.GroupVersionResource{Group: batchv1.GroupName, Version: batchv1.SchemeGroupVersion.Version, Resource: "jobs"}).Namespace("default")
+
+	artifact := &osbuilder.OSArtifact{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "OSArtifact",
+			APIVersion: osbuilder.GroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "simple-",
+		},
+		Spec: osbuilder.OSArtifactSpec{
+			ImageName: "quay.io/kairos/core-opensuse:latest",
+			ISO:       true,
+			DiskSize:  "",
+			Exporters: []batchv1.JobSpec{
+				{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							RestartPolicy: corev1.RestartPolicyNever,
+							Containers: []corev1.Container{
+								{
+									Name:    "test",
+									Image:   "debian:latest",
+									Command: []string{"bash"},
+									Args:    []string{"-xec", "[ -f /artifacts/*.iso ]"},
+									VolumeMounts: []corev1.VolumeMount{
+										{
+											Name:      "artifacts",
+											ReadOnly:  true,
+											MountPath: "/artifacts",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	uArtifact := unstructured.Unstructured{}
+	uArtifact.Object, _ = runtime.DefaultUnstructuredConverter.ToUnstructured(artifact)
+	resp, err := artifacts.Create(context.TODO(), &uArtifact, metav1.CreateOptions{})
+	Expect(err).ToNot(HaveOccurred())
+	artifactName = resp.GetName()
+
+	Context("simple", func() {
+		artifactLabelSelectorReq, _ := labels.NewRequirement("build.kairos.io/artifact", selection.Equals, []string{artifactName})
+		artifactLabelSelector := labels.NewSelector().Add(*artifactLabelSelectorReq)
+
+		It("starts the build", func() {
+			Eventually(func(g Gomega) {
+				w, err := pods.Watch(context.TODO(), metav1.ListOptions{LabelSelector: artifactLabelSelector.String()})
+				Expect(err).ToNot(HaveOccurred())
+
+				var stopped bool
+				for !stopped {
+					event, ok := <-w.ResultChan()
+
+					stopped = event.Type != watch.Deleted && event.Type != watch.Error || !ok
+				}
+			}).WithTimeout(time.Hour).Should(Succeed())
 		})
 
-		It("creates a simple iso", func() {
-			err := kubectl.Apply("", "../../tests/fixtures/simple.yaml")
+		It("exports the artifacts", func() {
+			Eventually(func(g Gomega) {
+				w, err := jobs.Watch(context.TODO(), metav1.ListOptions{LabelSelector: artifactLabelSelector.String()})
+				Expect(err).ToNot(HaveOccurred())
+
+				var stopped bool
+				for !stopped {
+					event, ok := <-w.ResultChan()
+
+					stopped = event.Type != watch.Deleted && event.Type != watch.Error || !ok
+				}
+			}).WithTimeout(time.Hour).Should(Succeed())
+		})
+
+		It("artifact successfully builds", func() {
+			Eventually(func(g Gomega) {
+				w, err := artifacts.Watch(context.TODO(), metav1.ListOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				var artifact osbuilder.OSArtifact
+				var stopped bool
+				for !stopped {
+					event, ok := <-w.ResultChan()
+					stopped = !ok
+
+					if event.Type == watch.Modified && event.Object.(*unstructured.Unstructured).GetName() == artifactName {
+						err := scheme.Convert(event.Object, &artifact, nil)
+						Expect(err).ToNot(HaveOccurred())
+						stopped = artifact.Status.Phase == osbuilder.Ready
+					}
+
+				}
+			}).WithTimeout(time.Hour).Should(Succeed())
+		})
+
+		It("cleans up resources on deleted", func() {
+			err := artifacts.Delete(context.TODO(), artifactName, metav1.DeleteOptions{})
 			Expect(err).ToNot(HaveOccurred())
 
-			itHasTheCorrectImage()
-			itHasTheCorrectLabels()
-			itCopiesTheArtifacts()
-
-			By("deleting the custom resource", func() {
-				err = kubectl.New().Delete("osartifacts", "-n", "default", "hello-kairos")
+			Eventually(func(g Gomega) int {
+				res, err := artifacts.List(context.TODO(), metav1.ListOptions{})
 				Expect(err).ToNot(HaveOccurred())
-			})
-
-			itCleansUpRoleBindings()
-			itDeletesTheArtifacts()
+				return len(res.Items)
+			}).WithTimeout(time.Minute).Should(Equal(0))
+			Eventually(func(g Gomega) int {
+				res, err := pods.List(context.TODO(), metav1.ListOptions{LabelSelector: artifactLabelSelector.String()})
+				Expect(err).ToNot(HaveOccurred())
+				return len(res.Items)
+			}).WithTimeout(time.Minute).Should(Equal(0))
+			Eventually(func(g Gomega) int {
+				res, err := pvcs.List(context.TODO(), metav1.ListOptions{LabelSelector: artifactLabelSelector.String()})
+				Expect(err).ToNot(HaveOccurred())
+				return len(res.Items)
+			}).WithTimeout(time.Minute).Should(Equal(0))
+			Eventually(func(g Gomega) int {
+				res, err := jobs.List(context.TODO(), metav1.ListOptions{LabelSelector: artifactLabelSelector.String()})
+				Expect(err).ToNot(HaveOccurred())
+				return len(res.Items)
+			}).WithTimeout(time.Minute).Should(Equal(0))
 		})
 	})
 })
-
-func itHasTheCorrectImage() {
-	Eventually(func() string {
-		b, _ := kubectl.GetData("default", "osartifacts", "hello-kairos", "jsonpath={.spec.imageName}")
-		fmt.Printf("looking for image core-opensuse:latest = %+v\n", string(b))
-		return string(b)
-	}, 2*time.Minute, 2*time.Second).Should(Equal("quay.io/kairos/core-opensuse:latest"))
-}
-
-func itHasTheCorrectLabels() {
-	Eventually(func() string {
-		b, _ := kubectl.GetData("default", "jobs", "hello-kairos", "jsonpath={.spec.template.metadata.labels.osbuild}")
-		fmt.Printf("looking for label workloadhello-kairos = %+v\n", string(b))
-		return string(b)
-	}, 2*time.Minute, 2*time.Second).Should(Equal("workloadhello-kairos"))
-}
-
-func itCopiesTheArtifacts() {
-	nginxNamespace := "osartifactbuilder-operator-system"
-	Eventually(func() string {
-		podName := strings.TrimSpace(findPodsWithLabel(nginxNamespace, "app.kubernetes.io/name=osbuilder-nginx"))
-
-		out, _ := kubectl.RunCommandWithOutput(nginxNamespace, podName, "ls /usr/share/nginx/html")
-
-		return out
-	}, 15*time.Minute, 2*time.Second).Should(MatchRegexp("hello-kairos.iso"))
-}
-
-func itCleansUpRoleBindings() {
-	nginxNamespace := "osartifactbuilder-operator-system"
-	Eventually(func() string {
-		rb := findRoleBindings(nginxNamespace)
-
-		return rb
-	}, 3*time.Minute, 2*time.Second).ShouldNot(MatchRegexp("hello-kairos"))
-}
-
-func itDeletesTheArtifacts() {
-	nginxNamespace := "osartifactbuilder-operator-system"
-	Eventually(func() string {
-		podName := findPodsWithLabel(nginxNamespace, "app.kubernetes.io/name=osbuilder-nginx")
-
-		out, err := kubectl.RunCommandWithOutput(nginxNamespace, podName, "ls	/usr/share/nginx/html")
-		Expect(err).ToNot(HaveOccurred(), out)
-
-		return out
-	}, 3*time.Minute, 2*time.Second).ShouldNot(MatchRegexp("hello-kairos.iso"))
-}
-
-func findPodsWithLabel(namespace, label string) string {
-	kubectlCommand := fmt.Sprintf("kubectl get pods -n %s -l %s --no-headers -o custom-columns=\":metadata.name\" | head -n1", namespace, label)
-	cmd := exec.Command("bash", "-c", kubectlCommand)
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	Expect(err).ToNot(HaveOccurred(), stderr.String())
-
-	return strings.TrimSpace(out.String())
-}
-
-func findRoleBindings(namespace string) string {
-	kubectlCommand := fmt.Sprintf("kubectl get rolebindings -n %s --no-headers -o custom-columns=\":metadata.name\"", namespace)
-	cmd := exec.Command("bash", "-c", kubectlCommand)
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	Expect(err).ToNot(HaveOccurred(), stderr.String())
-
-	return strings.TrimSpace(out.String())
-}
