@@ -285,6 +285,7 @@ else
 fi
 
 # We copy the grubmenu.cfg to a temporary location to be copied later in the state partition
+# https://github.com/kairos-io/kairos/blob/62c67e3e61d49435c362014522e5c6696335376f/overlay/files/system/oem/08_grub.yaml#L105
 # This is a hack and we need a better way: https://github.com/kairos-io/kairos/issues/1427
 tmpgrubconfig=$(mktemp /tmp/grubmeny.cfg.XXXXXX)
 cp -rfv $TARGET/etc/kairos/branding/grubmenu.cfg "${tmpgrubconfig}"
