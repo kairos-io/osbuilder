@@ -16,6 +16,7 @@ load_vars() {
   oem_size="${OEM_SIZE:-64}"
   recovery_size="${RECOVERY_SIZE:-2192}"
   default_active_size="${DEFAULT_ACTIVE_SIZE:-2400}"
+  menu_entry="${DEFAULT_MENU_ENTRY:-Kairos}"
 
   ## Repositories
   final_repo="${FINAL_REPO:-quay.io/costoolkit/releases-teal-arm64}"
@@ -422,7 +423,7 @@ mkdir -p $WORKDIR/persistent/cloud-config
 
 cp -rfv /defaults.yaml $WORKDIR/persistent/cloud-config/01_defaults.yaml
 
-grub2-editenv $WORKDIR/state/grub_oem_env set "default_menu_entry=Kairos"
+grub2-editenv $WORKDIR/state/grub_oem_env set "default_menu_entry=$menu_entry"
 
 # We copy the file we saved earier to the STATE partition
 cp -rfv "${tmpgrubconfig}" $WORKDIR/state/grubmenu

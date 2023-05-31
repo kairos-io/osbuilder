@@ -20,6 +20,7 @@ size="${SIZE:-7544}"
 state_size="${STATE_SIZE:-4992}"
 recovery_size="${RECOVERY_SIZE:-2192}"
 default_active_size="${DEFAULT_ACTIVE_SIZE:-2400}"
+menu_entry="${DEFAULT_MENU_ENTRY:-Kairos}"
 
 container_image="${container_image:-quay.io/kairos/kairos-opensuse-leap-arm-rpi:v1.5.1-k3sv1.25.6-k3s1}"
 
@@ -67,6 +68,11 @@ else
   rsync -axq --exclude='host' --exclude='mnt' --exclude='proc' --exclude='sys' --exclude='dev' --exclude='tmp' ${directory}/ $TARGET
 fi
 
+# We copy the grubmenu.cfg to a temporary location to be copied later in the state partition
+# This is a hack and we need a better way: https://github.com/kairos-io/kairos/issues/1427
+tmpgrubconfig=$(mktemp /tmp/grubmeny.cfg.XXXXXX)
+cp -rfv $TARGET/etc/kairos/branding/grubmenu.cfg "${tmpgrubconfig}"
+
 umount $TARGET
 sync
 
@@ -106,7 +112,11 @@ LOOP=$(losetup --show -f state_partition.img)
 mkdir -p $WORKDIR/state
 mount $LOOP $WORKDIR/state
 cp -arf $STATEDIR/* $WORKDIR/state
-grub2-editenv $WORKDIR/state/grub_oem_env set "default_menu_entry=Kairos"
+grub2-editenv $WORKDIR/state/grub_oem_env set "default_menu_entry=$menu_entry"
+
+# We copy the file we saved earier to the STATE partition
+cp -rfv "${tmpgrubconfig}" $WORKDIR/state/grubmenu
+
 umount $WORKDIR/state
 losetup -d $LOOP
 
