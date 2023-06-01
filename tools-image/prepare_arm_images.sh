@@ -94,8 +94,9 @@ tune2fs -L ${SYSTEM_LABEL} ${RECOVERY}/cOS/recovery.img
 
 # Install real grub config to recovery
 cp -rfv /arm/grub/config/* $RECOVERY
-mkdir -p $RECOVERY/grub2
+mkdir -p $RECOVERY/grub2/fonts
 cp -rfv /arm/grub/artifacts/* $RECOVERY/grub2
+mv $RECOVERY/grub2/*pf2 $RECOVERY/grub2/fonts
 
 dd if=/dev/zero of=recovery_partition.img bs=1M count=$recovery_size
 dd if=/dev/zero of=state_partition.img bs=1M count=$state_size

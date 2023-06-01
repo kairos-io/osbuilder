@@ -32,9 +32,9 @@ FROM quay.io/kairos/packages:raspberrypi-firmware-dt-firmware-2021.03.15-2.1 AS 
 FROM quay.io/kairos/packages:u-boot-rockchip-arm-vendor-blob-0.1 AS pinebook-u-boot
 
 ## Generic ARM artifacts
-FROM quay.io/kairos/packages-arm64:grub-efi-static-0.1  AS grub-efi
-FROM quay.io/kairos/packages-arm64:grub-config-static-0.1  AS grub-config
-FROM quay.io/kairos/packages-arm64:grub-artifacts-static-0.1   AS grub-artifacts
+FROM quay.io/kairos/packages-arm64:grub-efi-static-0.2  AS grub-efi
+FROM quay.io/kairos/packages-arm64:grub-config-static-0.3  AS grub-config
+FROM quay.io/kairos/packages-arm64:grub-artifacts-static-0.2   AS grub-artifacts
 
  ## RAW images
 FROM quay.io/kairos/packages:grub-efi-static-0.1  AS grub-raw-efi
