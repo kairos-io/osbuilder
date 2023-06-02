@@ -71,13 +71,16 @@ cleanup() {
   if [ -n "$oem" ]; then
     umount $oem || true
   fi
-  losetup -D || true
+
+  if [ "$disable_lvm" == "false" ]; then
+    lvremove --yes KairosVG
+  fi
 
   for LOOPS in $(losetup -a | awk -F':' {'print $1'} | awk -F'/' {'print $3'}); do
     for LOOPPART in $(ls /dev/mapper/${LOOPS}*| awk -F'/' {'print $4'}); do
-      dmsetup remove "${LOOPPART}";
+      dmsetup remove "${LOOPPART}" || true;
     done;
-    losetup -d /dev/"${LOOPS}";
+    losetup -d /dev/"${LOOPS}" || true;
   done
 }
 
