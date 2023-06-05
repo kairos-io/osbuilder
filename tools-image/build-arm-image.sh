@@ -71,7 +71,15 @@ cleanup() {
   if [ -n "$oem" ]; then
     umount $oem || true
   fi
-  losetup -D || true
+
+  if [ "$disable_lvm" == "false" ]; then
+    lvremove --yes KairosVG
+  fi
+  MAPPER_LOOP=$(basename "$LOOP")
+    for LOOPPART in $(ls /dev/mapper/"${MAPPER_LOOP}"*| awk -F'/' {'print $4'}); do
+    dmsetup remove "${LOOPPART}" || true;
+  done;
+  losetup -d "${LOOP}" || true;
 }
 
 ensure_dir_structure() {
@@ -423,23 +431,30 @@ fi
 mount $state $WORKDIR/state
 mount $efi $WORKDIR/efi
 
-mkdir $WORKDIR/persistent
-mount $persistent $WORKDIR/persistent
-mkdir -p $WORKDIR/persistent/cloud-config
 
-cp -rfv /defaults.yaml $WORKDIR/persistent/cloud-config/01_defaults.yaml
+if [ "$disable_lvm" == "false" ]; then
+  mkdir $WORKDIR/oem
+  mount $oem_lv $WORKDIR/oem
+
+  cp -rfv /defaults.yaml $WORKDIR/oem/01_defaults.yaml
+
+  # Set a OEM config file if specified
+  if [ -n "$config" ]; then
+    echo ">> Copying $config OEM config file"
+    get_url $config $WORKDIR/oem/99_custom.yaml
+  fi
+
+  umount $WORKDIR/oem
+else
+  echo "LVM disabled: Not adding default config with default user/pass and custom config file"
+  echo "Enable LVM to copy those files into /oem"
+fi
 
 grub2-editenv $WORKDIR/state/grub_oem_env set "default_menu_entry=$menu_entry"
 
 # We copy the file we saved earier to the STATE partition
 cp -rfv "${tmpgrubconfig}" $WORKDIR/state/grubmenu
 
-# Set a OEM config file if specified
-if [ -n "$config" ]; then
-  echo ">> Copying $config OEM config file"
-  get_url $config $WORKDIR/persistent/cloud-config/99_custom.yaml
-fi
-umount $WORKDIR/persistent
 
 # Copy over content
 cp -arf $EFI/* $WORKDIR/efi
