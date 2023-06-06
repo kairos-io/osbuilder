@@ -73,7 +73,7 @@ cleanup() {
   fi
 
   if [ "$disable_lvm" == "false" ]; then
-    lvremove --yes KairosVG
+    lvremove --yes KairosVG || true
   fi
   MAPPER_LOOP=$(basename "$LOOP")
     for LOOPPART in $(ls /dev/mapper/"${MAPPER_LOOP}"*| awk -F'/' {'print $4'}); do
