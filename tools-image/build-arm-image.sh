@@ -72,14 +72,7 @@ cleanup() {
     umount $oem || true
   fi
 
-  if [ "$disable_lvm" == "false" ]; then
-    lvremove --yes KairosVG || true
-  fi
-  MAPPER_LOOP=$(basename "$LOOP")
-    for LOOPPART in $(ls /dev/mapper/"${MAPPER_LOOP}"*| awk -F'/' {'print $4'}); do
-    dmsetup remove "${LOOPPART}" || true;
-  done;
-  losetup -d "${LOOP}" || true;
+  losetup -D "${LOOP}" || true;
 }
 
 ensure_dir_structure() {
