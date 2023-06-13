@@ -71,7 +71,7 @@ COPY --from=grub-artifacts / /arm/grub/artifacts
 RUN zypper ref && zypper dup -y
 
 ## ISO Build depedencies
-RUN zypper ref && zypper in -y xfsprogs parted util-linux-systemd e2fsprogs curl util-linux udev rsync grub2 dosfstools grub2-x86_64-efi squashfs mtools xorriso lvm2
+RUN zypper ref && zypper in -y xfsprogs parted util-linux-systemd e2fsprogs curl util-linux udev rsync grub2 dosfstools grub2-x86_64-efi squashfs mtools xorriso lvm2 zstd
 RUN mkdir /config
 
 # Arm image build deps
