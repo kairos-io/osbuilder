@@ -345,6 +345,8 @@ partprobe
 
 echo ">> Writing image and partition table"
 dd if=/dev/zero of="${output_image}" bs=1024000 count="${size}" || exit 1
+# make it gpt
+echo "label: gpt" | sfdisk "${output_image}"
 if [ "$model" == "rpi64" ]; then 
     sgdisk -n 1:8192:+96M -c 1:EFI -t 1:0c00 ${output_image}
 else
@@ -383,7 +385,7 @@ export device="/dev/mapper/${device}"
 
 partprobe
 
-kpartx -va $DRIVE
+kpartx -vag $DRIVE
 
 echo ">> Populating partitions"
 efi=${device}p1
