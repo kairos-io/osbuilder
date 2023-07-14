@@ -7,16 +7,16 @@ set -ex
 load_vars() {
 
   model=${MODEL:-odroid_c2}
-  disable_lvm=${DISABLE_LVM:-false}
   directory=${DIRECTORY:-}
   output_image="${OUTPUT_IMAGE:-arm.img}"
   # Img creation options. Size is in MB for all of the vars below
-  size="${SIZE:-7608}"
+  size="${SIZE:-7672}"
   state_size="${STATE_SIZE:-4992}"
   oem_size="${OEM_SIZE:-64}"
   recovery_size="${RECOVERY_SIZE:-2192}"
   default_active_size="${DEFAULT_ACTIVE_SIZE:-2400}"
   menu_entry="${DEFAULT_MENU_ENTRY:-Kairos}"
+  persistent_size="${PERSISTENT_SIZE:-64}"
 
   ## Repositories
   final_repo="${FINAL_REPO:-quay.io/costoolkit/releases-teal-arm64}"
@@ -104,8 +104,6 @@ usage()
     echo " --directory: (optional) A directory which will be used for active/passive/recovery system"
     echo " --model: (optional) The board model"
     echo " --efi-dir: (optional) A directory with files which will be added to the efi partition"
-    echo " --disable-lvm: (optional- no arguments) LVM for the recovery and oem partitions will be disabled"
-    echo " --use-lvm: (deprecated and ignored. Kept for backwards compatibility)"
     exit 1
 }
 
@@ -192,12 +190,6 @@ while [ "$#" -gt 0 ]; do
             shift 1
             repo_type=$1
             ;;
-        --disable-lvm)
-            disable_lvm=true
-            ;;
-        --use-lvm)
-            disable_lvm=false
-            ;;
         -h)
             usage
             ;;
@@ -240,6 +232,8 @@ echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
 echo "Image Size: $size MB."
 echo "Recovery Partition: $recovery_size."
 echo "State Partition: $state_size MB."
+echo "Oem Partition: $oem_size MB."
+echo "PErsistent Partition: $persistent_size MB."
 echo "Images size (active/passive/recovery.img): $default_active_size MB."
 echo "Model: $model"
 if [ -n "$container_image" ] && [ -z "$directory" ]; then
@@ -352,13 +346,11 @@ if [ "$model" == "rpi64" ]; then
 else
     sgdisk -n 1:8192:+16M -c 1:EFI -t 1:0700 ${output_image}
 fi
-sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
-if [ "$disable_lvm" == 'true' ]; then
+# Keep same order as in our installs
+sgdisk -n 2:0:+${oem_size}M -c 2:oem -t 2:8300 ${output_image}
 sgdisk -n 3:0:+${recovery_size}M -c 3:recovery -t 3:8300 ${output_image}
-else 
-sgdisk -n 3:0:+$(( ${recovery_size} + ${oem_size} ))M -c 3:lvm -t 3:8e00 ${output_image}
-fi
-sgdisk -n 4:0:+64M -c 4:persistent -t 4:8300 ${output_image}
+sgdisk -n 4:0:+${state_size}M -c 4:state -t 4:8300 ${output_image}
+sgdisk -n 5:0:+${persistent_size}M -c 5:persistent -t 5:8300 ${output_image}
 
 # Make the disk GPT
 sgdisk -g ${output_image}
@@ -386,67 +378,43 @@ kpartx -vag $DRIVE
 
 echo ">> Populating partitions"
 efi=${device}p1
-state=${device}p2
+oem=${device}p2
 recovery=${device}p3
-persistent=${device}p4
-oem_lv=/dev/mapper/KairosVG-oem
-recovery_lv=/dev/mapper/KairosVG-recovery
+state=${device}p4
+persistent=${device}p5
 
-# Create partitions (RECOVERY, STATE, COS_PERSISTENT)
+# Create partitions (RECOVERY, STATE, COS_PERSISTENT, OEM, GRUB)
 mkfs.vfat -F 32 ${efi}
 fatlabel ${efi} COS_GRUB
 
-if [ "$disable_lvm" == 'true' ]; then
+mkfs.ext4 -F -L ${OEM_LABEL} $oem
 mkfs.ext4 -F -L ${RECOVERY_LABEL} $recovery
-else
-pvcreate $recovery
-vgcreate KairosVG $recovery
-lvcreate -Z n -n oem -L ${oem_size} KairosVG
-lvcreate -Z n -n recovery -l 100%FREE KairosVG
-vgchange -ay
-vgmknodes
-mkfs.ext4 -F -L ${OEM_LABEL} $oem_lv
-mkfs.ext4 -F -L ${RECOVERY_LABEL} $recovery_lv
-fi
 mkfs.ext4 -F -L ${STATE_LABEL} $state
 mkfs.ext4 -F -L ${PERSISTENT_LABEL} $persistent
 
 mkdir $WORKDIR/state
 mkdir $WORKDIR/recovery
 mkdir $WORKDIR/efi
+mkdir $WORKDIR/oem
 
-if [ "$disable_lvm" == 'true' ]; then
 mount $recovery $WORKDIR/recovery
-else
-mount $recovery_lv $WORKDIR/recovery
-fi
 mount $state $WORKDIR/state
 mount $efi $WORKDIR/efi
+mount $oem $WORKDIR/oem
 
-
-if [ "$disable_lvm" == "false" ]; then
-  mkdir $WORKDIR/oem
-  mount $oem_lv $WORKDIR/oem
-
-  cp -rfv /defaults.yaml $WORKDIR/oem/01_defaults.yaml
-
-  # Set a OEM config file if specified
-  if [ -n "$config" ]; then
-    echo ">> Copying $config OEM config file"
-    get_url $config $WORKDIR/oem/99_custom.yaml
-  fi
-
-  umount $WORKDIR/oem
-else
-  echo "LVM disabled: Not adding default config with default user/pass and custom config file"
-  echo "Enable LVM to copy those files into /oem"
+# START copy default files in oem dir
+cp -rfv /defaults.yaml $WORKDIR/oem/01_defaults.yaml
+# Set a OEM config file if specified
+if [ -n "$config" ]; then
+  echo ">> Copying $config OEM config file"
+  get_url $config $WORKDIR/oem/99_custom.yaml
 fi
+# END copy default files in oem dir
 
 grub2-editenv $WORKDIR/state/grub_oem_env set "default_menu_entry=$menu_entry"
 
 # We copy the file we saved earier to the STATE partition
 cp -rfv "${tmpgrubconfig}" $WORKDIR/state/grubmenu
-
 
 # Copy over content
 cp -arf $EFI/* $WORKDIR/efi
@@ -456,10 +424,8 @@ cp -arf $STATEDIR/* $WORKDIR/state
 umount $WORKDIR/recovery
 umount $WORKDIR/state
 umount $WORKDIR/efi
+umount $WORKDIR/oem
 
-if [ "$disable_lvm" == 'false' ]; then
-vgchange -an
-fi
 sync
 
 # Flash uboot and vendor-specific bits
