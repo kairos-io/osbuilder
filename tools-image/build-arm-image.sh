@@ -358,8 +358,7 @@ sgdisk -n 3:0:+$(( ${recovery_size} + ${oem_size} ))M -c 3:lvm -t 3:8e00 ${outpu
 fi
 sgdisk -n 4:0:+64M -c 4:persistent -t 4:8300 ${output_image}
 
-# Make the disk GPT
-sgdisk -g ${output_image}
+sgdisk -m 1:2:3:4 ${output_image}
 
 # Prepare the image and copy over the files
 
@@ -468,7 +467,7 @@ sync
 sleep 5
 sync
 
-kpartx -dvg $DRIVE || true
+kpartx -dv $DRIVE || true
 
 umount $DRIVE || true
 
