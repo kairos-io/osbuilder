@@ -360,6 +360,10 @@ sgdisk -n 4:0:+64M -c 4:persistent -t 4:8300 ${output_image}
 
 sgdisk -m 1:2:3:4 ${output_image}
 
+if [ "$model" == "rpi64" ]; then 
+    sfdisk --part-type ${output_image} 1 c
+fi
+
 # Prepare the image and copy over the files
 
 export DRIVE=$(losetup -f "${output_image}" --show)
