@@ -345,8 +345,6 @@ partprobe
 
 echo ">> Writing image and partition table"
 dd if=/dev/zero of="${output_image}" bs=1024000 count="${size}" || exit 1
-# make it gpt
-echo "label: gpt" | sfdisk "${output_image}"
 if [ "$model" == "rpi64" ]; then 
     sgdisk -n 1:8192:+96M -c 1:EFI -t 1:0c00 ${output_image}
 else
@@ -360,8 +358,11 @@ sgdisk -n 3:0:+$(( ${recovery_size} + ${oem_size} ))M -c 3:lvm -t 3:8e00 ${outpu
 fi
 sgdisk -n 4:0:+64M -c 4:persistent -t 4:8300 ${output_image}
 
-# Make the disk GPT
-sgdisk -g ${output_image}
+sgdisk -m 1:2:3:4 ${output_image}
+
+if [ "$model" == "rpi64" ]; then 
+    sfdisk --part-type ${output_image} 1 c
+fi
 
 # Prepare the image and copy over the files
 
@@ -382,7 +383,7 @@ export device="/dev/mapper/${device}"
 
 partprobe
 
-kpartx -vag $DRIVE
+kpartx -va $DRIVE
 
 echo ">> Populating partitions"
 efi=${device}p1
@@ -470,7 +471,7 @@ sync
 sleep 5
 sync
 
-kpartx -dvg $DRIVE || true
+kpartx -dv $DRIVE || true
 
 umount $DRIVE || true
 
