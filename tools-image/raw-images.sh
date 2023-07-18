@@ -71,7 +71,7 @@ truncate -s "+$((1024*1024))" $OUT
 
 if [ -n "$EXTEND" ]; then
   echo "Extending image of $EXTEND MB"
-  truncate -s "+$(($EXTEND*1024*1024))" $OUT
+  truncate -s "+$((EXTEND*1024*1024))" $OUT
 fi
 
 # Create the partition table in $OUT (assumes sectors of 512 bytes)

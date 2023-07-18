@@ -367,8 +367,8 @@ fi
 
 # Prepare the image and copy over the files
 
-export DRIVE
 DRIVE=$(losetup -f "${output_image}" --show)
+export DRIVE
 if [ -z "${DRIVE}" ]; then
 	echo "Cannot execute losetup for $output_image"
 	exit 1
