@@ -3,12 +3,27 @@ ARG LEAP_VERSION=15.4
 ARG LUET_VERSION=0.33.0
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 
+FROM golang:1.20 as enki
+ENV CGO_ENABLED=0
+COPY ./enki /src/enki
+WORKDIR /src/enki
+RUN go mod download
+# Set arg/env after go mod download, otherwise we invalidate the cached layers due to the commit changing easily
+ARG ENKI_VERSION=0.0.1
+ARG ENKI_COMMIT=""
+ENV ENKI_VERSION=${ENKI_VERSION}
+ENV ENKI_COMMIT=${ENKI_COMMIT}
+RUN go build \
+    -ldflags "-w -s \
+    -X github.com/kairos-io/enki/internal/version.version=$ENKI_VERSION \
+    -X github.com/kairos-io/enki/internal/version.gitCommit=$ENKI_COMMIT" \
+    -o /usr/bin/enki
+
 FROM opensuse/leap:$LEAP_VERSION as luet-install
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 ENV LUET_NOLOCK=true
 ENV TMPDIR=/tmp
 COPY luet.yaml /etc/luet/luet.yaml
-RUN luet install -y system/elemental-cli
 RUN luet install -y livecd/grub2 --system-target /grub2
 RUN luet install -y livecd/grub2-efi-image --system-target /efi
 
@@ -42,7 +57,6 @@ FROM quay.io/kairos/packages:grub-config-static-0.1  AS grub-raw-config
 FROM quay.io/kairos/packages:grub-artifacts-static-0.1   AS grub-raw-artifacts
 
 FROM opensuse/leap:$LEAP_VERSION
-COPY --from=luet-install /usr/bin/elemental /usr/bin/elemental
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 
 # ISO files
@@ -101,5 +115,6 @@ COPY ./netboot.sh /netboot.sh
 
 COPY defaults.yaml /defaults.yaml
 
+COPY --from=enki /usr/bin/enki /usr/bin/enki
 
 ENTRYPOINT [ "/entrypoint.sh" ]

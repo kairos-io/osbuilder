@@ -2,4 +2,4 @@
 
 set -ex
 
-elemental --config-dir /config $@
+enki --config-dir /config $@
