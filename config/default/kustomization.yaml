@@ -73,13 +73,11 @@ vars:
 #    kind: Service
 #    version: v1
 #    name: webhook-service
-
-vars:
 - name: NGINX_NAMESPACE
   objref:
     kind: Namespace
     name: system
-    apiVersion: v1 
+    apiVersion: v1
 
 - name: ARTIFACT_COPIER_ROLE
   objref:
