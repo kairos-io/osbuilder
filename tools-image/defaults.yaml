@@ -4,5 +4,5 @@ stages:
   initramfs:
     - name: "Set default user/pass"
       users:
-       kairos:
-         passwd: "kairos"
+        kairos:
+          passwd: "kairos"
