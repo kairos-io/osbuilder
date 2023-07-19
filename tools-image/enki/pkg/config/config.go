@@ -32,6 +32,13 @@ var decodeHook = viper.DecodeHook(
 	),
 )
 
+func WithFs(fs v1.FS) func(r *v1.Config) error {
+	return func(r *v1.Config) error {
+		r.Fs = fs
+		return nil
+	}
+}
+
 func WithLogger(logger v1.Logger) func(r *v1.Config) error {
 	return func(r *v1.Config) error {
 		r.Logger = logger
@@ -39,9 +46,51 @@ func WithLogger(logger v1.Logger) func(r *v1.Config) error {
 	}
 }
 
+func WithSyscall(syscall v1.SyscallInterface) func(r *v1.Config) error {
+	return func(r *v1.Config) error {
+		r.Syscall = syscall
+		return nil
+	}
+}
+
 func WithMounter(mounter mount.Interface) func(r *v1.Config) error {
 	return func(r *v1.Config) error {
 		r.Mounter = mounter
+		return nil
+	}
+}
+
+func WithRunner(runner v1.Runner) func(r *v1.Config) error {
+	return func(r *v1.Config) error {
+		r.Runner = runner
+		return nil
+	}
+}
+
+func WithClient(client v1.HTTPClient) func(r *v1.Config) error {
+	return func(r *v1.Config) error {
+		r.Client = client
+		return nil
+	}
+}
+
+func WithCloudInitRunner(ci v1.CloudInitRunner) func(r *v1.Config) error {
+	return func(r *v1.Config) error {
+		r.CloudInitRunner = ci
+		return nil
+	}
+}
+
+func WithArch(arch string) func(r *v1.Config) error {
+	return func(r *v1.Config) error {
+		r.Arch = arch
+		return nil
+	}
+}
+
+func WithImageExtractor(extractor v1.ImageExtractor) func(r *v1.Config) error {
+	return func(r *v1.Config) error {
+		r.ImageExtractor = extractor
 		return nil
 	}
 }

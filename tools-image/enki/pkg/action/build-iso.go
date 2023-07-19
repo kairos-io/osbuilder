@@ -37,7 +37,7 @@ func (b *BuildISOAction) ISORun() (err error) {
 	cleanup := utils.NewCleanStack()
 	defer func() { err = cleanup.Cleanup(err) }()
 
-	isoTmpDir, err := utils.TempDir(b.cfg.Fs, "", "elemental-iso")
+	isoTmpDir, err := utils.TempDir(b.cfg.Fs, "", "enki-iso")
 	if err != nil {
 		return err
 	}
