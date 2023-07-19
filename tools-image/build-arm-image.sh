@@ -131,7 +131,7 @@ get_url()
     esac
 }
 
-trap "cleanup" 1 2 3 6 9 14 15 EXIT
+trap "cleanup" 1 2 3 6 14 15 EXIT
 
 load_vars
 
@@ -223,6 +223,7 @@ else
 fi
 
 if [ -n "$cos_config" ] && [ -e "$cos_config" ]; then
+  # shellcheck source=/dev/null
   source "$cos_config"
 fi
 
@@ -283,7 +284,7 @@ ensure_dir_structure $TARGET
 # Download the container image
 if [ -z "$directory" ]; then
   echo ">>> Downloading container image"
-  elemental pull-image $( (( $local_build == 'true')) && printf %s '--local' ) $container_image $TARGET
+  elemental pull-image $( (( local_build == 'true')) && printf %s '--local' ) $container_image $TARGET
 else
   echo ">>> Copying files from $directory"
   rsync -axq --exclude='host' --exclude='mnt' --exclude='proc' --exclude='sys' --exclude='dev' --exclude='tmp' ${directory}/ $TARGET
@@ -354,7 +355,7 @@ sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
 if [ "$disable_lvm" == 'true' ]; then
 sgdisk -n 3:0:+${recovery_size}M -c 3:recovery -t 3:8300 ${output_image}
 else 
-sgdisk -n 3:0:+$(( ${recovery_size} + ${oem_size} ))M -c 3:lvm -t 3:8e00 ${output_image}
+sgdisk -n 3:0:+$(( recovery_size + oem_size ))M -c 3:lvm -t 3:8e00 ${output_image}
 fi
 sgdisk -n 4:0:+64M -c 4:persistent -t 4:8300 ${output_image}
 
@@ -366,7 +367,8 @@ fi
 
 # Prepare the image and copy over the files
 
-export DRIVE=$(losetup -f "${output_image}" --show)
+DRIVE=$(losetup -f "${output_image}" --show)
+export DRIVE
 if [ -z "${DRIVE}" ]; then
 	echo "Cannot execute losetup for $output_image"
 	exit 1
