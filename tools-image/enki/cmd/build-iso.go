@@ -13,10 +13,9 @@ import (
 	"k8s.io/mount-utils"
 )
 
-// NewBuildISO returns a new instance of the buid-iso subcommand and appends it to
-// the root command. requireRoot is to initiate it with or without the CheckRoot
-// pre-run check. This method is mostly used for testing purposes.
-func NewBuildISO(root *cobra.Command, addCheckRoot bool) *cobra.Command {
+// NewBuildISOCmd returns a new instance of the build-iso subcommand and appends it to
+// the root command.
+func NewBuildISOCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "build-iso SOURCE",
 		Short: "Build bootable installation media ISOs",
@@ -26,10 +25,7 @@ func NewBuildISO(root *cobra.Command, addCheckRoot bool) *cobra.Command {
 			"    * <sourceName> - is path to file or directory, image name with tag version",
 		Args: cobra.MaximumNArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if addCheckRoot {
-				return CheckRoot()
-			}
-			return nil
+			return CheckRoot()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path, err := exec.LookPath("mount")
@@ -108,7 +104,6 @@ func NewBuildISO(root *cobra.Command, addCheckRoot bool) *cobra.Command {
 			return nil
 		},
 	}
-	root.AddCommand(c)
 	c.Flags().StringP("name", "n", "", "Basename of the generated ISO file")
 	c.Flags().StringP("output", "o", "", "Output directory (defaults to current directory)")
 	c.Flags().Bool("date", false, "Adds a date suffix into the generated ISO file")
@@ -122,5 +117,6 @@ func NewBuildISO(root *cobra.Command, addCheckRoot bool) *cobra.Command {
 	return c
 }
 
-// register the subcommand into rootCmd
-var _ = NewBuildISO(rootCmd, true)
+func init() {
+	rootCmd.AddCommand(NewBuildISOCmd())
+}
