@@ -82,13 +82,6 @@ func (b *BuildISOAction) ISORun() (err error) {
 	}
 
 	b.cfg.Logger.Infof("Preparing EFI image...")
-	if b.spec.BootloaderInRootFs {
-		err = b.PrepareEFI(rootDir, uefiDir)
-		if err != nil {
-			b.cfg.Logger.Errorf("Failed fetching EFI data: %v", err)
-			return err
-		}
-	}
 	err = b.applySources(uefiDir, b.spec.UEFI...)
 	if err != nil {
 		b.cfg.Logger.Errorf("Failed installing EFI packages: %v", err)
@@ -96,13 +89,6 @@ func (b *BuildISOAction) ISORun() (err error) {
 	}
 
 	b.cfg.Logger.Infof("Preparing ISO image root tree...")
-	if b.spec.BootloaderInRootFs {
-		err = b.PrepareISO(rootDir, isoDir)
-		if err != nil {
-			b.cfg.Logger.Errorf("Failed fetching bootloader binaries: %v", err)
-			return err
-		}
-	}
 	err = b.applySources(isoDir, b.spec.Image...)
 	if err != nil {
 		b.cfg.Logger.Errorf("Failed installing ISO image packages: %v", err)

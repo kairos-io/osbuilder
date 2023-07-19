@@ -14,8 +14,6 @@ const (
 	EfiFs                 = "vfat"
 	IsoRootFile           = "rootfs.squashfs"
 	IsoEFIPath            = "/boot/uefi.img"
-	LuetDefaultRepoURI    = "quay.io/costoolkit/releases-green"
-	LuetDefaultRepoPrio   = 90
 	BuildImgName          = "elemental"
 	EfiBootPath           = "/EFI/BOOT"
 	GrubEfiImagex86       = "/usr/share/grub2/x86_64-efi/grub.efi"
@@ -123,17 +121,4 @@ func GetXorrisoBooloaderArgs(root string) []string {
 		"-boot_image", "any", "emul_type=no_emulation",
 	}
 	return args
-}
-
-// GetBuildKeyEnvMap returns environment variable bindings to BuildConfig data
-func GetBuildKeyEnvMap() map[string]string {
-	return map[string]string{
-		"name": "NAME",
-	}
-}
-
-// GetISOKeyEnvMap returns environment variable bindings to LiveISO data
-func GetISOKeyEnvMap() map[string]string {
-	// None for the time being
-	return map[string]string{}
 }

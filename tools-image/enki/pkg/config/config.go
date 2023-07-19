@@ -1,14 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"io"
-	"io/fs"
-	"os"
-	"reflect"
-	"runtime"
-	"strings"
-
 	"github.com/kairos-io/enki/internal/version"
 	"github.com/kairos-io/enki/pkg/constants"
 	"github.com/kairos-io/enki/pkg/utils"
@@ -21,7 +13,12 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/twpayne/go-vfs"
+	"io"
+	"io/fs"
 	"k8s.io/mount-utils"
+	"os"
+	"reflect"
+	"runtime"
 )
 
 var decodeHook = viper.DecodeHook(
@@ -118,8 +115,6 @@ func ReadConfigBuild(configDir string, flags *pflag.FlagSet, mounter mount.Inter
 
 	// Bind buildconfig flags
 	bindGivenFlags(viper.GetViper(), flags)
-	// merge environment variables on top for rootCmd
-	viperReadEnv(viper.GetViper(), "BUILD", constants.GetBuildKeyEnvMap())
 
 	// unmarshal all the vars into the config object
 	err := viper.Unmarshal(cfg, setDecoder, decodeHook)
@@ -140,8 +135,6 @@ func ReadBuildISO(b *v1.BuildConfig, flags *pflag.FlagSet) (*v1.LiveISO, error) 
 	}
 	// Bind build-iso cmd flags
 	bindGivenFlags(vp, flags)
-	// Bind build-iso env vars
-	viperReadEnv(vp, "ISO", constants.GetISOKeyEnvMap())
 
 	err := vp.Unmarshal(iso, setDecoder, decodeHook)
 	if err != nil {
@@ -165,19 +158,6 @@ func NewBuildConfig(opts ...GenericOptions) *v1.BuildConfig {
 	b := &v1.BuildConfig{
 		Config: *NewConfig(opts...),
 		Name:   constants.BuildImgName,
-	}
-	if len(b.Repos) == 0 {
-		repo := constants.LuetDefaultRepoURI
-		if b.Arch != constants.Archx86 {
-			repo = fmt.Sprintf("%s-%s", constants.LuetDefaultRepoURI, b.Arch)
-		}
-		b.Repos = []v1.Repository{{
-			Name:     "cos",
-			Type:     "docker",
-			URI:      repo,
-			Arch:     b.Arch,
-			Priority: constants.LuetDefaultRepoPrio,
-		}}
 	}
 	return b
 }
@@ -266,11 +246,9 @@ func configLogger(log v1.Logger, vfs v1.FS) {
 		}
 	}
 
-	v := version.Get()
+	log.Infof("Starting enki version %s", version.GetVersion())
 	if log.GetLevel() == logrus.DebugLevel {
-		log.Debugf("Starting enki version %s on commit %s", v.Version, v.GitCommit)
-	} else {
-		log.Infof("Starting enki version %s", v.Version)
+		log.Debugf("%+v\n", version.Get())
 	}
 }
 
@@ -321,24 +299,5 @@ func UnmarshalerHook() mapstructure.DecodeHookFunc {
 		}
 		// Decoding finalized
 		return to.Interface(), err
-	}
-}
-
-func viperReadEnv(vp *viper.Viper, prefix string, keyMap map[string]string) {
-	// If we expect to override complex keys in the config, i.e. configs
-	// that are nested, we probably need to manually do the env stuff
-	// ourselves, as this will only match keys in the config root
-	replacer := strings.NewReplacer("-", "_")
-	vp.SetEnvKeyReplacer(replacer)
-
-	if prefix == "" {
-		prefix = "ELEMENTAL"
-	} else {
-		prefix = fmt.Sprintf("ELEMENTAL_%s", prefix)
-	}
-
-	// Manually bind keys to env variable if custom names are needed.
-	for k, v := range keyMap {
-		_ = vp.BindEnv(k, fmt.Sprintf("%s_%s", prefix, v))
 	}
 }

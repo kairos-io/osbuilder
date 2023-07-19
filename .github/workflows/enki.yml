@@ -15,7 +15,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: earthly/actions/setup-earthly@v1
+      - uses: earthly/actions-setup@v1.0.7
       - name: Checkout code
         uses: actions/checkout@v3
         with:
