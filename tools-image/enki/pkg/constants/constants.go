@@ -56,7 +56,7 @@ const (
 	fi                                                                              
 	menuentry "%s" --class os --unrestricted {                                     
 		echo Loading kernel...                                                      
-		$linux ($root)/boot/kernel cdroot root=live:CDLABEL=%s rd.live.dir=/ rd.live.squashimg=rootfs.squashfs console=tty1 console=ttyS0 rd.cos.disable
+		$linux ($root)/boot/kernel cdroot root=live:CDLABEL=%s rd.live.dir=/ rd.live.squashimg=rootfs.squashfs rd.live.overlay.overlayfs console=tty1 console=ttyS0 rd.cos.disable
 		echo Loading initrd...                                                      
 		$initrd ($root)/boot/initrd                                                 
 	}                                                                               
