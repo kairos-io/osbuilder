@@ -38,7 +38,7 @@ mkdir -p $WORKDIR/tmpefi
 
 # Create the EFI partition FAT16 and include the EFI image and a basic grub.cfg
 truncate -s $((20*1024*1024)) bootloader/efi.img
-cp -rfv /arm/grub/efi/* $WORKDIR/tmpefi
+cp -rfv /efi/* $WORKDIR/tmpefi
 mkfs.fat -F16 -n COS_GRUB bootloader/efi.img
 mcopy -s -i bootloader/efi.img $WORKDIR/tmpefi/EFI ::EFI
 
@@ -93,9 +93,9 @@ cp -rfv ${STATEDIR}/cOS/active.img ${RECOVERY}/cOS/recovery.img
 tune2fs -L ${SYSTEM_LABEL} ${RECOVERY}/cOS/recovery.img
 
 # Install real grub config to recovery
-cp -rfv /arm/grub/config/* $RECOVERY
+cp -rfv /raw/grubconfig/* $RECOVERY
 mkdir -p $RECOVERY/grub2/fonts
-cp -rfv /arm/grub/artifacts/* $RECOVERY/grub2
+cp -rfv /raw/grubartifacts/* $RECOVERY/grub2
 mv $RECOVERY/grub2/*pf2 $RECOVERY/grub2/fonts
 
 dd if=/dev/zero of=recovery_partition.img bs=1M count=$recovery_size

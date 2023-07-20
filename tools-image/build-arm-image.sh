@@ -321,9 +321,9 @@ cp -rfv ${STATEDIR}/cOS/active.img ${RECOVERY}/cOS/recovery.img
 tune2fs -L ${SYSTEM_LABEL} ${RECOVERY}/cOS/recovery.img
 
 # Install real grub config to recovery
-cp -rfv /arm/grub/config/* $RECOVERY
+cp -rfv /raw/grubconfig/* $RECOVERY
 mkdir -p $RECOVERY/grub2/fonts
-cp -rfv /arm/grub/artifacts/* $RECOVERY/grub2
+cp -rfv /raw/grubartifacts/* $RECOVERY/grub2
 mv $RECOVERY/grub2/*pf2 $RECOVERY/grub2/fonts
 
 sync
@@ -336,7 +336,7 @@ if [ -z "$EFI" ]; then
   exit 1
 fi
 
-cp -rfv /arm/grub/efi/* $EFI
+cp -rfv /efi/* $EFI
 if [ -n "$EFI" ] && [  -n "$efi_dir" ]; then
   echo "Copy $efi_dir to EFI directory"
   cp -rfv $efi_dir/* $EFI
