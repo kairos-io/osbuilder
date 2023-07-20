@@ -7,6 +7,9 @@ on:
       - master
     tags:
       - '*'
+concurrency:
+  group: tool-image-${{ github.ref || github.head_ref }}
+  cancel-in-progress: true
 
 jobs:
   docker:

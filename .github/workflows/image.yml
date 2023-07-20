@@ -8,6 +8,10 @@ on:
     tags:
       - '*'
 
+concurrency:
+  group: image-${{ github.ref || github.head_ref }}
+  cancel-in-progress: true
+
 jobs:
   docker:
     runs-on: ubuntu-latest

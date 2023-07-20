@@ -9,6 +9,10 @@ on:
       - '*'
   pull_request:
 
+concurrency:
+  group: test-${{ github.ref || github.head_ref }}
+  cancel-in-progress: true
+
 jobs:
   docker:
     runs-on: ubuntu-latest
