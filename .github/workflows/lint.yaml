@@ -6,6 +6,11 @@ on:
   pull_request:
     paths:
       - '**'
+
+concurrency:
+  group: lint-${{ github.ref || github.head_ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_COLOR: 1
 jobs:
