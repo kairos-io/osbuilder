@@ -10,6 +10,7 @@ import (
 	"github.com/kairos-io/enki/pkg/utils"
 	"github.com/kairos-io/kairos-agent/v2/pkg/elemental"
 	v1 "github.com/kairos-io/kairos-agent/v2/pkg/types/v1"
+	sdk "github.com/kairos-io/kairos-sdk/utils"
 )
 
 type BuildISOAction struct {
@@ -34,7 +35,7 @@ func NewBuildISOAction(cfg *v1.BuildConfig, spec *v1.LiveISO, opts ...BuildISOAc
 
 // ISORun will install the system from a given configuration
 func (b *BuildISOAction) ISORun() (err error) {
-	cleanup := utils.NewCleanStack()
+	cleanup := sdk.NewCleanStack()
 	defer func() { err = cleanup.Cleanup(err) }()
 
 	isoTmpDir, err := utils.TempDir(b.cfg.Fs, "", "enki-iso")
