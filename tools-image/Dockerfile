@@ -1,5 +1,5 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
-ARG LEAP_VERSION=15.4
+ARG LEAP_VERSION=15.5
 ARG LUET_VERSION=0.33.0
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 
