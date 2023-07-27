@@ -16,7 +16,10 @@ bump-repositories:
     COPY +last-commit-packages/REPO_ARM64 REPO_ARM64
     ARG REPO_AMD64=$(cat REPO_AMD64)
     ARG REPO_ARM64=$(cat REPO_ARM64)
-    COPY tools-image/luet.yaml luet.yaml
-    RUN yq eval ".repositories[0] |= . * { \"reference\": \"${REPO_AMD64}\" }" -i luet.yaml
-    RUN yq eval ".repositories[1] |= . * { \"reference\": \"${REPO_ARM64}\" }" -i luet.yaml
-    SAVE ARTIFACT luet.yaml AS LOCAL tools-image/luet.yaml
+    COPY tools-image/luet-amd64.yaml luet-amd64.yaml
+    COPY tools-image/luet-arm64.yaml luet-arm64.yaml
+    RUN yq eval ".repositories[0] |= . * { \"reference\": \"${REPO_AMD64}\" }" -i luet-amd64.yaml
+    RUN yq eval ".repositories[0] |= . * { \"reference\": \"${REPO_ARM64}\" }" -i luet-arm64.yaml
+    SAVE ARTIFACT luet-arm64.yaml AS LOCAL tools-image/luet-arm64.yaml
+    SAVE ARTIFACT luet-amd64.yaml AS LOCAL tools-image/luet-amd64.yaml
+
