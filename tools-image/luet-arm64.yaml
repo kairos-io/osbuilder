@@ -4,20 +4,11 @@ general:
 logging:
   enable_emoji: false
 repositories:
-  - name: "kairos"
-    description: "kairos repository"
-    type: "docker"
-    arch: amd64
-    cached: true
-    priority: 2
-    urls:
-      - "quay.io/kairos/packages"
-    reference: 20230718103103-repository.yaml
   - name: "kairos-arm64"
     description: "kairos repository arm64"
     type: "docker"
-    arch: arm64
     cached: true
+    enable: true
     priority: 2
     urls:
       - "quay.io/kairos/packages-arm64"
