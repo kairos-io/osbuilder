@@ -57,7 +57,7 @@ RUN luet install -y static/grub-artifacts --system-target /raw/grubartifacts
 # get them from the x86 repo and we want it to do it from the arm64 repo, even on x86
 # so we use the arm64 luet config and use that to install those on x86
 # This is being used by the prepare_arm_images.sh and build-arch-image.sh scripts
-RUN luet install --config /tmp/luet-arm64.yaml -y static/grub-efi --system-target /arm/raw/grub
+RUN luet install --config /tmp/luet-arm64.yaml -y static/grub-efi --system-target /arm/raw/grubefi
 RUN luet install --config /tmp/luet-arm64.yaml -y static/grub-config --system-target /arm/raw/grubconfig
 RUN luet install --config /tmp/luet-arm64.yaml -y static/grub-artifacts --system-target /arm/raw/grubartifacts
 
