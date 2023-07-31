@@ -336,7 +336,7 @@ if [ -z "$EFI" ]; then
   exit 1
 fi
 
-cp -rfv /efi/* $EFI
+cp -rfv /arm/raw/grubefi/* $EFI
 if [ -n "$EFI" ] && [  -n "$efi_dir" ]; then
   echo "Copy $efi_dir to EFI directory"
   cp -rfv $efi_dir/* $EFI
