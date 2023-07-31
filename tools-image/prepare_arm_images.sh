@@ -38,7 +38,7 @@ mkdir -p $WORKDIR/tmpefi
 
 # Create the EFI partition FAT16 and include the EFI image and a basic grub.cfg
 truncate -s $((20*1024*1024)) bootloader/efi.img
-cp -rfv /efi/* $WORKDIR/tmpefi
+cp -rfv /arm/raw/grub/* $WORKDIR/tmpefi
 mkfs.fat -F16 -n COS_GRUB bootloader/efi.img
 mcopy -s -i bootloader/efi.img $WORKDIR/tmpefi/EFI ::EFI
 
