@@ -24,7 +24,16 @@ import (
 
 // OSArtifactSpec defines the desired state of OSArtifact
 type OSArtifactSpec struct {
+	// There are 3 ways to specify a Kairos image:
+
+	// Points to a prepared kairos image (e.g. a released one)
 	ImageName string `json:"imageName,omitempty"`
+
+	// Points to a vanilla (non-Kairos) image. osbuilder will try to convert this to a Kairos image
+	BaseImageName string `json:"baseImageName,omitempty"`
+
+	// Points to a Secret that contains a Dockerfile. osbuilder will build the image using that Dockerfile and will try to create a Kairos image from it.
+	BaseImageDockerfile *SecretKeySelector `json:"baseImageDockerfile,omitempty"`
 
 	ISO bool `json:"iso,omitempty"`
 

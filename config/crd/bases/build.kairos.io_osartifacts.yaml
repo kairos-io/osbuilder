@@ -41,6 +41,22 @@ spec:
             properties:
               azureImage:
                 type: boolean
+              baseImageDockerfile:
+                description: Points to a Secret that contains a Dockerfile. osbuilder
+                  will build the image using that Dockerfile and will try to create
+                  a Kairos image from it.
+                properties:
+                  key:
+                    type: string
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+              baseImageName:
+                description: Points to a vanilla (non-Kairos) image. osbuilder will
+                  try to convert this to a Kairos image
+                type: string
               bundles:
                 items:
                   type: string
@@ -7834,6 +7850,7 @@ spec:
               grubConfig:
                 type: string
               imageName:
+                description: Points to a prepared kairos image (e.g. a released one)
                 type: string
               imagePullSecrets:
                 items:
