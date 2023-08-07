@@ -85,4 +85,10 @@ var _ = Describe("OSArtifactReconciler", func() {
 			Expect(c).ToNot(BeNil())
 		})
 	})
+
+	Describe("CreateBuilderPod", func() {
+		// TODO: Add a dockerfile to the artifact and check that the image was built
+		It("creates an initcontainer to build the image", func() {
+		})
+	})
 })
