@@ -17,11 +17,16 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
+	"math/rand"
 	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -76,3 +81,29 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
+
+func randStringRunes(n int) string {
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
+func createRandomNamespace(clientset *kubernetes.Clientset) string {
+	name := randStringRunes(10)
+	_, err := clientset.CoreV1().Namespaces().Create(context.Background(), &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}, metav1.CreateOptions{})
+	Expect(err).ToNot(HaveOccurred())
+
+	return name
+}
+
+func deleteNamepace(clientset *kubernetes.Clientset, name string) {
+	err := clientset.CoreV1().Namespaces().Delete(context.Background(), name, metav1.DeleteOptions{})
+	Expect(err).ToNot(HaveOccurred())
+}
