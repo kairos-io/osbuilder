@@ -61,15 +61,33 @@ RUN luet install --config /tmp/luet-arm64.yaml -y static/grub-efi --system-targe
 RUN luet install --config /tmp/luet-arm64.yaml -y static/grub-config --system-target /arm/raw/grubconfig
 RUN luet install --config /tmp/luet-arm64.yaml -y static/grub-artifacts --system-target /arm/raw/grubartifacts
 
+# kairos-agent so we can use the pull-image
+RUN luet install -y system/kairos-agent
+
 # remove luet tmp files. Side effect of setting the system-target is that it treats it as a root fs
 # so temporal files are stored in each dir
 RUN rm -Rf /grub2/var/tmp
+RUN rm -Rf /grub2/var/cache
 RUN rm -Rf /efi/var/tmp
+RUN rm -Rf /efi/var/cache
 RUN rm -Rf /rpi/var/tmp
+RUN rm -Rf /rpi/var/cache
 RUN rm -Rf /pinebookpro/u-boot/var/tmp
+RUN rm -Rf /pinebookpro/u-boot/var/cache
+RUN rm -Rf /firmware/odroid-c2/var/tmp
+RUN rm -Rf /firmware/odroid-c2/var/cache
 RUN rm -Rf /raw/grub/var/tmp
+RUN rm -Rf /raw/grub/var/cache
 RUN rm -Rf /raw/grubconfig/var/tmp
+RUN rm -Rf /raw/grubconfig/var/cache
 RUN rm -Rf /raw/grubartifacts/var/tmp
+RUN rm -Rf /raw/grubartifacts/var/cache
+RUN rm -Rf /arm/raw/grubefi/var/tmp
+RUN rm -Rf /arm/raw/grubefi/var/cache
+RUN rm -Rf /arm/raw/grubconfig/var/tmp
+RUN rm -Rf /arm/raw/grubconfig/var/cache
+RUN rm -Rf /arm/raw/grubartifacts/var/tmp
+RUN rm -Rf /arm/raw/grubartifacts/var/cache
 
 RUN mkdir /config
 
