@@ -30,10 +30,8 @@ var _ = Describe("OSArtifactReconciler", func() {
 		restConfig = ctrl.GetConfigOrDie()
 		clientset, err = kubernetes.NewForConfig(restConfig)
 		Expect(err).ToNot(HaveOccurred())
-
 		namespace = createRandomNamespace(clientset)
 
-		r = &OSArtifactReconciler{}
 		artifact = &osbuilder.OSArtifact{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "OSArtifact",
@@ -45,6 +43,21 @@ var _ = Describe("OSArtifactReconciler", func() {
 			},
 		}
 
+		scheme := runtime.NewScheme()
+		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+		utilruntime.Must(osbuilder.AddToScheme(scheme))
+
+		mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
+			Scheme: scheme,
+		})
+		Expect(err).ToNot(HaveOccurred())
+
+		r = &OSArtifactReconciler{}
+		err = (r).SetupWithManager(mgr)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	JustBeforeEach(func() {
 		k8s := dynamic.NewForConfigOrDie(restConfig)
 		artifacts := k8s.Resource(
 			schema.GroupVersionResource{
@@ -56,19 +69,8 @@ var _ = Describe("OSArtifactReconciler", func() {
 		uArtifact.Object, _ = runtime.DefaultUnstructuredConverter.ToUnstructured(artifact)
 		resp, err := artifacts.Create(context.TODO(), &uArtifact, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
+		// Update the local object with the one fetched from k8s
 		runtime.DefaultUnstructuredConverter.FromUnstructured(resp.Object, artifact)
-
-		scheme := runtime.NewScheme()
-		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-		utilruntime.Must(osbuilder.AddToScheme(scheme))
-
-		mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-			Scheme: scheme,
-		})
-		Expect(err).ToNot(HaveOccurred())
-
-		err = (r).SetupWithManager(mgr)
-		Expect(err).ToNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
@@ -87,6 +89,9 @@ var _ = Describe("OSArtifactReconciler", func() {
 	})
 
 	Describe("CreateBuilderPod", func() {
+		BeforeEach(func() {
+
+		})
 		// TODO: Add a dockerfile to the artifact and check that the image was built
 		It("creates an initcontainer to build the image", func() {
 		})
