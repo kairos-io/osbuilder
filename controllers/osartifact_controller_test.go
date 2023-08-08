@@ -6,6 +6,7 @@ import (
 	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -90,6 +91,14 @@ var _ = Describe("OSArtifactReconciler", func() {
 
 	Describe("CreateBuilderPod", func() {
 		BeforeEach(func() {
+			c, err := clientset.CoreV1().Secrets(namespace).Create(context.TODO(),
+				&corev1.Secret{},
+				artifact.Name+"-dockerfile", metav1.CreateOptions{})
+
+			artifact.Spec.BaseImageDockerfile := osbuilder.SecretKeySelector{
+				Name: "",
+				Key:  "",
+			}
 
 		})
 		// TODO: Add a dockerfile to the artifact and check that the image was built
