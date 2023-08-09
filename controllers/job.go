@@ -293,6 +293,17 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		},
 	}
 
+	if artifact.Spec.BaseImageDockerfile != nil {
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+			Name: "dockerfile",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: artifact.Spec.BaseImageDockerfile.Name,
+				},
+			},
+		})
+	}
+
 	if artifact.Spec.CloudConfigRef != nil {
 		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 			Name: "cloudconfig",
@@ -319,19 +330,54 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 			corev1.Container{
 				ImagePullPolicy: corev1.PullAlways,
 				Name:            "kaniko-build",
+				Image:           "gcr.io/kaniko-project/executor:latest",
+				//Command:         []string{"/bin/sh", "-cxe"},
+				Args: []string{
+					"--dockerfile", "dockerfile/Dockerfile",
+					"--context", "dir://workspace", // TODO: this should be the rootfs dir
+					"--destination", "whatever", // We don't push, but it needs this
+					"--tar-path", "/image.tar", // TODO: Can we create a directory instead?
+					"--no-push",
+				},
+				// -v $PWD:/workspace
+				// -it gcr.io/kaniko-project/executor:latest
+				// --dockerfile=/workspace/Dockerfile --context=dir://workspace --destination=jimmykarily/test-kaniko --tar-path=/workspace/myimage.tar --no-push
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "rootfs",
+						MountPath: "/rootfs",
+					},
+					{
+						Name:      "dockerfile",
+						MountPath: "/workspace/dockerfile",
+					},
+				},
+			})
+	} else if artifact.Spec.BaseImageName != "" { // Existing base image - non kairos
+		podSpec.InitContainers = append(podSpec.InitContainers,
+			unpackContainer("baseimage-non-kairos", r.ToolImage, artifact.Spec.BaseImageName))
+	} else { // Existing Kairos base image
+		podSpec.InitContainers = append(podSpec.InitContainers, unpackContainer("baseimage", r.ToolImage, artifact.Spec.ImageName))
+	}
+
+	// If base image was a non kairos one, either one we built with kaniko or prebuilt,
+	// convert it to a Kairos one, in a best effort manner.
+	if artifact.Spec.BaseImageDockerfile != nil || artifact.Spec.BaseImageName != "" {
+		podSpec.InitContainers = append(podSpec.InitContainers,
+			corev1.Container{
+				ImagePullPolicy: corev1.PullAlways,
+				Name:            "convert-to-kairos",
 				Image:           "busybox",
 				Command:         []string{"/bin/bash", "-cxe"},
 				Args:            []string{"ls"},
-				// VolumeMounts: []corev1.VolumeMount{
-				// 	{
-				// 		Name:      "rootfs",
-				// 		MountPath: "/rootfs",
-				// 	},
-				// },
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "rootfs",
+						MountPath: "/rootfs",
+					},
+				},
 			})
 	}
-
-	podSpec.InitContainers = append(podSpec.InitContainers, unpackContainer("baseimage", r.ToolImage, artifact.Spec.ImageName))
 
 	for i, bundle := range artifact.Spec.Bundles {
 		podSpec.InitContainers = append(podSpec.InitContainers, unpackContainer(fmt.Sprint(i), r.ToolImage, bundle))

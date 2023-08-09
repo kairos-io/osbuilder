@@ -1,12 +1,17 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"time"
 
 	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -125,11 +130,42 @@ var _ = Describe("OSArtifactReconciler", func() {
 				pod, err := r.CreateBuilderPod(context.TODO(), artifact, pvc)
 				Expect(err).ToNot(HaveOccurred())
 
+				By("checking if an init container was created")
 				initContainerNames := []string{}
 				for _, c := range pod.Spec.InitContainers {
 					initContainerNames = append(initContainerNames, c.Name)
 				}
 				Expect(initContainerNames).To(ContainElement("kaniko-build"))
+
+				// TODO:
+				By("checking if the image was built successfully")
+				Eventually(func() bool {
+					p, err := clientset.CoreV1().Pods(namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+					Expect(err).ToNot(HaveOccurred())
+
+					fmt.Printf("p.Status.InitConditions = %+v\n", p.Status.InitContainerStatuses)
+
+					var allReady = false
+					if len(p.Status.InitContainerStatuses) > 0 {
+						allReady = true
+					}
+					for _, c := range p.Status.InitContainerStatuses {
+						allReady = allReady && c.Ready
+					}
+
+					return allReady
+				}, 2*time.Minute, 5*time.Second).Should(BeTrue())
+
+				req := clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{})
+				podLogs, err := req.Stream(context.TODO())
+				Expect(err).ToNot(HaveOccurred())
+				defer podLogs.Close()
+
+				buf := new(bytes.Buffer)
+				_, err = io.Copy(buf, podLogs)
+				Expect(err).ToNot(HaveOccurred())
+				str := buf.String()
+				fmt.Printf("str = %+v\n", str)
 			})
 		})
 	})
