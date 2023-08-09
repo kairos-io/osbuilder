@@ -53,7 +53,9 @@ var _ = Describe("OSArtifactReconciler", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		r = &OSArtifactReconciler{}
+		r = &OSArtifactReconciler{
+			ToolImage: "quay.io/kairos/osbuilder-tools:latest",
+		}
 		err = (r).SetupWithManager(mgr)
 		Expect(err).ToNot(HaveOccurred())
 	})
@@ -90,19 +92,45 @@ var _ = Describe("OSArtifactReconciler", func() {
 	})
 
 	Describe("CreateBuilderPod", func() {
-		BeforeEach(func() {
-			c, err := clientset.CoreV1().Secrets(namespace).Create(context.TODO(),
-				&corev1.Secret{},
-				artifact.Name+"-dockerfile", metav1.CreateOptions{})
+		When("BaseImageDockerfile is set", func() {
+			BeforeEach(func() {
+				secretName := artifact.Name + "-dockerfile"
 
-			artifact.Spec.BaseImageDockerfile := osbuilder.SecretKeySelector{
-				Name: "",
-				Key:  "",
-			}
+				_, err := clientset.CoreV1().Secrets(namespace).Create(context.TODO(),
+					&corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      secretName,
+							Namespace: namespace,
+						},
+						StringData: map[string]string{
+							"Dockerfile": "FROM ubuntu",
+						},
+						Type: "Opaque",
+					}, metav1.CreateOptions{})
+				Expect(err).ToNot(HaveOccurred())
 
-		})
-		// TODO: Add a dockerfile to the artifact and check that the image was built
-		It("creates an initcontainer to build the image", func() {
+				artifact.Spec.BaseImageDockerfile = &osbuilder.SecretKeySelector{
+					Name: secretName,
+					Key:  "Dockerfile",
+				}
+
+				// Whatever, just to let it work
+				artifact.Spec.ImageName = "quay.io/kairos-ci/" + artifact.Name + ":latest"
+			})
+
+			It("creates an Init Container to build the image", func() {
+				pvc, err := r.CreatePVC(context.TODO(), artifact)
+				Expect(err).ToNot(HaveOccurred())
+
+				pod, err := r.CreateBuilderPod(context.TODO(), artifact, pvc)
+				Expect(err).ToNot(HaveOccurred())
+
+				initContainerNames := []string{}
+				for _, c := range pod.Spec.InitContainers {
+					initContainerNames = append(initContainerNames, c.Name)
+				}
+				Expect(initContainerNames).To(ContainElement("kaniko-build"))
+			})
 		})
 	})
 })

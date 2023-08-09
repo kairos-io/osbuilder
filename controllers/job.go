@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -308,7 +309,29 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, artifact.Spec.ImagePullSecrets[i])
 	}
 
-	podSpec.InitContainers = []corev1.Container{unpackContainer("baseimage", r.ToolImage, artifact.Spec.ImageName)}
+	podSpec.InitContainers = []corev1.Container{}
+	// TODO: Decide how we build the base image here:
+	// - build a base image from a dockerfile and convert it to a kairos one
+	// - convert an existing image to a kairos one
+	// - prebuilt kairos image exists
+	if artifact.Spec.BaseImageDockerfile != nil {
+		podSpec.InitContainers = append(podSpec.InitContainers,
+			corev1.Container{
+				ImagePullPolicy: corev1.PullAlways,
+				Name:            "kaniko-build",
+				Image:           "busybox",
+				Command:         []string{"/bin/bash", "-cxe"},
+				Args:            []string{"ls"},
+				// VolumeMounts: []corev1.VolumeMount{
+				// 	{
+				// 		Name:      "rootfs",
+				// 		MountPath: "/rootfs",
+				// 	},
+				// },
+			})
+	}
+
+	podSpec.InitContainers = append(podSpec.InitContainers, unpackContainer("baseimage", r.ToolImage, artifact.Spec.ImageName))
 
 	for i, bundle := range artifact.Spec.Bundles {
 		podSpec.InitContainers = append(podSpec.InitContainers, unpackContainer(fmt.Sprint(i), r.ToolImage, bundle))
