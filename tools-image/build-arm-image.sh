@@ -73,6 +73,8 @@ cleanup() {
   fi
 
   losetup -D "${LOOP}" || true;
+  dmsetup remove KairosVG-oem || true;
+  dmsetup remove KairosVG-recovery || true;
 }
 
 ensure_dir_structure() {
@@ -215,7 +217,12 @@ while [ "$#" -gt 0 ]; do
     shift 1
 done
 
-if [ "$model" == "rpi64" ]; then
+if [ "$model" == "rpi64" ];then
+  echo "rpi64 model not supported anymore, please select either rpi3 or rpi4"
+  exit 1
+fi
+
+if [ "$model" == "rpi3" ] || [ "$model" == "rpi4" ]; then
     container_image=${CONTAINER_IMAGE:-quay.io/costoolkit/examples:rpi-latest}
 else
     # Odroid C2 image contains kernel-default-extra, might have broader support
@@ -284,7 +291,7 @@ ensure_dir_structure $TARGET
 # Download the container image
 if [ -z "$directory" ]; then
   echo ">>> Downloading container image"
-  elemental pull-image $( (( local_build == 'true')) && printf %s '--local' ) $container_image $TARGET
+  kairos-agent pull-image $container_image $TARGET
 else
   echo ">>> Copying files from $directory"
   rsync -axq --exclude='host' --exclude='mnt' --exclude='proc' --exclude='sys' --exclude='dev' --exclude='tmp' ${directory}/ $TARGET
@@ -346,23 +353,31 @@ partprobe
 
 echo ">> Writing image and partition table"
 dd if=/dev/zero of="${output_image}" bs=1024000 count="${size}" || exit 1
-if [ "$model" == "rpi64" ]; then 
+
+# Image partitions
+# only rpi4 supports gpt
+if [ "$model" == "rpi3" ]; then
     sgdisk -n 1:8192:+96M -c 1:EFI -t 1:0c00 ${output_image}
+    sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
+    sgdisk -n 3:0:+$(( recovery_size + oem_size ))M -c 3:lvm -t 3:8e00 ${output_image}
+    sgdisk -n 4:0:+64M -c 4:persistent -t 4:8300 ${output_image}
+    sgdisk -m 1:2:3:4 ${output_image}
+    sfdisk --part-type ${output_image} 1 c
+elif [ "$model" == "rpi4" ]; then
+    echo "label: gpt" | sfdisk "${output_image}"
+    sgdisk -n 1:8192:+96M -c 1:EFI -t 1:0c00 ${output_image}
+    sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
+    sgdisk -n 3:0:+${recovery_size}M -c 3:recovery -t 3:8300 ${output_image}
+    sgdisk -n 4:0:+${oem_size}M -c 4:oem -t 4:8300 ${output_image}
+    sgdisk -n 5:0:+64M -c 5:persistent -t 5:8300 ${output_image}
+    sgdisk -g ${output_image}
+    sgdisk -m 1:2:3:4:5 ${output_image}
 else
     sgdisk -n 1:8192:+16M -c 1:EFI -t 1:0700 ${output_image}
-fi
-sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
-if [ "$disable_lvm" == 'true' ]; then
-sgdisk -n 3:0:+${recovery_size}M -c 3:recovery -t 3:8300 ${output_image}
-else 
-sgdisk -n 3:0:+$(( recovery_size + oem_size ))M -c 3:lvm -t 3:8e00 ${output_image}
-fi
-sgdisk -n 4:0:+64M -c 4:persistent -t 4:8300 ${output_image}
-
-sgdisk -m 1:2:3:4 ${output_image}
-
-if [ "$model" == "rpi64" ]; then 
-    sfdisk --part-type ${output_image} 1 c
+    sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
+    sgdisk -n 3:0:+$(( recovery_size + oem_size ))M -c 3:lvm -t 3:8e00 ${output_image}
+    sgdisk -n 4:0:+64M -c 4:persistent -t 4:8300 ${output_image}
+    sgdisk -m 1:2:3:4 ${output_image}
 fi
 
 # Prepare the image and copy over the files
@@ -385,71 +400,74 @@ export device="/dev/mapper/${device}"
 
 partprobe
 
-kpartx -va $DRIVE
+if [ "$model" == 'rpi4' ]; then
+  kpartx -vag $DRIVE
+else
+  kpartx -va $DRIVE
+fi
 
 echo ">> Populating partitions"
 efi=${device}p1
 state=${device}p2
 recovery=${device}p3
-persistent=${device}p4
-oem_lv=/dev/mapper/KairosVG-oem
-recovery_lv=/dev/mapper/KairosVG-recovery
+
+if [ "$model" == 'rpi4' ]; then
+  oem=${device}p4
+  persistent=${device}p5
+else
+  persistent=${device}p4
+  oem_lv=/dev/mapper/KairosVG-oem
+  recovery_lv=/dev/mapper/KairosVG-recovery
+fi
 
 # Create partitions (RECOVERY, STATE, COS_PERSISTENT)
 mkfs.vfat -F 32 ${efi}
 fatlabel ${efi} COS_GRUB
-
-if [ "$disable_lvm" == 'true' ]; then
-mkfs.ext4 -F -L ${RECOVERY_LABEL} $recovery
-else
-pvcreate $recovery
-vgcreate KairosVG $recovery
-lvcreate -Z n -n oem -L ${oem_size} KairosVG
-lvcreate -Z n -n recovery -l 100%FREE KairosVG
-vgchange -ay
-vgmknodes
-mkfs.ext4 -F -L ${OEM_LABEL} $oem_lv
-mkfs.ext4 -F -L ${RECOVERY_LABEL} $recovery_lv
-fi
 mkfs.ext4 -F -L ${STATE_LABEL} $state
 mkfs.ext4 -F -L ${PERSISTENT_LABEL} $persistent
+
+if [ "$model" == 'rpi4' ]; then
+  mkfs.ext4 -F -L ${RECOVERY_LABEL} $recovery
+  mkfs.ext4 -F -L ${OEM_LABEL} $oem
+else
+  pvcreate $recovery
+  vgcreate KairosVG $recovery
+  lvcreate -Z n -n oem -L ${oem_size} KairosVG
+  lvcreate -Z n -n recovery -l 100%FREE KairosVG
+  vgchange -ay
+  vgmknodes
+  mkfs.ext4 -F -L ${OEM_LABEL} $oem_lv
+  mkfs.ext4 -F -L ${RECOVERY_LABEL} $recovery_lv
+fi
 
 mkdir $WORKDIR/state
 mkdir $WORKDIR/recovery
 mkdir $WORKDIR/efi
+mkdir $WORKDIR/oem
 
-if [ "$disable_lvm" == 'true' ]; then
-mount $recovery $WORKDIR/recovery
-else
-mount $recovery_lv $WORKDIR/recovery
-fi
 mount $state $WORKDIR/state
 mount $efi $WORKDIR/efi
 
-
-if [ "$disable_lvm" == "false" ]; then
-  mkdir $WORKDIR/oem
-  mount $oem_lv $WORKDIR/oem
-
-  cp -rfv /defaults.yaml $WORKDIR/oem/01_defaults.yaml
-
-  # Set a OEM config file if specified
-  if [ -n "$config" ]; then
-    echo ">> Copying $config OEM config file"
-    get_url $config $WORKDIR/oem/99_custom.yaml
-  fi
-
-  umount $WORKDIR/oem
+if [ "$model" == 'rpi4' ]; then
+  mount $recovery $WORKDIR/recovery
+  mount $oem $WORKDIR/oem
 else
-  echo "LVM disabled: Not adding default config with default user/pass and custom config file"
-  echo "Enable LVM to copy those files into /oem"
+  mount $recovery_lv $WORKDIR/recovery
+  mount $oem_lv $WORKDIR/oem
+fi
+
+cp -rfv /defaults.yaml $WORKDIR/oem/01_defaults.yaml
+
+# Set a OEM config file if specified
+if [ -n "$config" ]; then
+  echo ">> Copying $config OEM config file"
+  get_url $config $WORKDIR/oem/99_custom.yaml
 fi
 
 grub2-editenv $WORKDIR/state/grub_oem_env set "default_menu_entry=$menu_entry"
 
 # We copy the file we saved earier to the STATE partition
 cp -rfv "${tmpgrubconfig}" $WORKDIR/state/grubmenu
-
 
 # Copy over content
 cp -arf $EFI/* $WORKDIR/efi
@@ -459,10 +477,13 @@ cp -arf $STATEDIR/* $WORKDIR/state
 umount $WORKDIR/recovery
 umount $WORKDIR/state
 umount $WORKDIR/efi
+umount $WORKDIR/oem
 
-if [ "$disable_lvm" == 'false' ]; then
-vgchange -an
+
+if [ "$model" != 'rpi4' ]; then
+  vgchange -an
 fi
+
 sync
 
 # Flash uboot and vendor-specific bits
@@ -473,7 +494,11 @@ sync
 sleep 5
 sync
 
-kpartx -dv $DRIVE || true
+if [ "$model" == 'rpi4' ]; then
+  kpartx -dvg $DRIVE
+else
+  kpartx -dv $DRIVE || true
+fi
 
 umount $DRIVE || true
 
