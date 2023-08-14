@@ -143,10 +143,6 @@ func (r *OSArtifactReconciler) CreateBuilderPod(ctx context.Context, artifact *o
 		return pod, err
 	}
 
-	// TODO: Add init container to build the image with kaniko
-	// if artifact.Spec.BaseImageDockerfile != nil {
-	// }
-
 	if err := r.Create(ctx, pod); err != nil {
 		return pod, err
 	}
