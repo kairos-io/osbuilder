@@ -394,8 +394,8 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 				ImagePullPolicy: corev1.PullAlways,
 				Name:            "convert-to-kairos",
 				Image:           "busybox",
-				Command:         []string{"/bin/sh", "-cxe"},
-				Args:            []string{"ls"},
+				Command:         []string{"/bin/echo"},
+				Args:            []string{"TODO"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      "rootfs",
