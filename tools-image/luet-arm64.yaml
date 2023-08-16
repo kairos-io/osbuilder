@@ -12,4 +12,4 @@ repositories:
     priority: 2
     urls:
       - "quay.io/kairos/packages-arm64"
-    reference: 20230807095622-repository.yaml
+    reference: 20230816123534-repository.yaml
