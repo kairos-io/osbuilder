@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"path/filepath"
+
 	"github.com/kairos-io/enki/pkg/action"
 	"github.com/kairos-io/enki/pkg/config"
 	"github.com/kairos-io/enki/pkg/constants"
@@ -31,10 +33,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/twpayne/go-vfs"
 	"github.com/twpayne/go-vfs/vfst"
-	"path/filepath"
 )
 
-var _ = Describe("Runtime Actions", func() {
+var _ = Describe("BuildISOAction", func() {
 	var cfg *v1.BuildConfig
 	var runner *v1mock.FakeRunner
 	var fs vfs.FS
