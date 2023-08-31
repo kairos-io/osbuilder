@@ -133,7 +133,7 @@ func (r *OSArtifactReconciler) createPVC(ctx context.Context, artifact *osbuilde
 	return pvc, nil
 }
 
-func (r *OSArtifactReconciler) CreateBuilderPod(ctx context.Context, artifact *osbuilder.OSArtifact, pvc *corev1.PersistentVolumeClaim) (*corev1.Pod, error) {
+func (r *OSArtifactReconciler) createBuilderPod(ctx context.Context, artifact *osbuilder.OSArtifact, pvc *corev1.PersistentVolumeClaim) (*corev1.Pod, error) {
 	pod := r.newBuilderPod(pvc.Name, artifact)
 	if pod.Labels == nil {
 		pod.Labels = map[string]string{}
@@ -161,7 +161,7 @@ func (r *OSArtifactReconciler) startBuild(ctx context.Context, artifact *osbuild
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	_, err = r.CreateBuilderPod(ctx, artifact, pvc)
+	_, err = r.createBuilderPod(ctx, artifact, pvc)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}

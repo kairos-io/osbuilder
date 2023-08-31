@@ -124,7 +124,7 @@ var _ = Describe("OSArtifactReconciler", func() {
 				pvc, err := r.createPVC(context.TODO(), artifact)
 				Expect(err).ToNot(HaveOccurred())
 
-				pod, err := r.CreateBuilderPod(context.TODO(), artifact, pvc)
+				pod, err := r.createBuilderPod(context.TODO(), artifact, pvc)
 				Expect(err).ToNot(HaveOccurred())
 
 				By("checking if an init container was created")
