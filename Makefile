@@ -275,8 +275,10 @@ unit-tests: test_deps
 e2e-tests:
 	GINKGO=$(GINKGO) KUBE_VERSION=${KUBE_VERSION} $(ROOT_DIR)/script/test.sh
 
-kind-e2e-tests: ginkgo kind-setup install undeploy-dev deploy-dev e2e-tests
+controller-tests:
+	USE_EXISTING_CLUSTER=true go run  github.com/onsi/ginkgo/v2/ginkgo -v run controllers/.
 
+kind-e2e-tests: ginkgo kind-setup install undeploy-dev deploy-dev e2e-tests controller-tests
 
 kubesplit: manifests kustomize
 	rm -rf helm-chart

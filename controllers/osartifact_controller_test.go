@@ -121,7 +121,7 @@ var _ = Describe("OSArtifactReconciler", func() {
 			})
 
 			It("creates an Init Container to build the image", func() {
-				pvc, err := r.CreatePVC(context.TODO(), artifact)
+				pvc, err := r.createPVC(context.TODO(), artifact)
 				Expect(err).ToNot(HaveOccurred())
 
 				pod, err := r.CreateBuilderPod(context.TODO(), artifact, pvc)

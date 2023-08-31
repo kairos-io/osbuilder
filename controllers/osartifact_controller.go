@@ -117,7 +117,7 @@ func (r *OSArtifactReconciler) CreateConfigMap(ctx context.Context, artifact *os
 	return nil
 }
 
-func (r *OSArtifactReconciler) CreatePVC(ctx context.Context, artifact *osbuilder.OSArtifact) (*corev1.PersistentVolumeClaim, error) {
+func (r *OSArtifactReconciler) createPVC(ctx context.Context, artifact *osbuilder.OSArtifact) (*corev1.PersistentVolumeClaim, error) {
 	pvc := r.newArtifactPVC(artifact)
 	if pvc.Labels == nil {
 		pvc.Labels = map[string]string{}
@@ -156,7 +156,7 @@ func (r *OSArtifactReconciler) startBuild(ctx context.Context, artifact *osbuild
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	pvc, err := r.CreatePVC(ctx, artifact)
+	pvc, err := r.createPVC(ctx, artifact)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
