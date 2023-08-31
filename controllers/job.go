@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -292,6 +293,17 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		},
 	}
 
+	if artifact.Spec.BaseImageDockerfile != nil {
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+			Name: "dockerfile",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: artifact.Spec.BaseImageDockerfile.Name,
+				},
+			},
+		})
+	}
+
 	if artifact.Spec.CloudConfigRef != nil {
 		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 			Name: "cloudconfig",
@@ -304,11 +316,40 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		})
 	}
 
-	for i := range artifact.Spec.ImagePullSecrets {
-		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, artifact.Spec.ImagePullSecrets[i])
+	podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, artifact.Spec.ImagePullSecrets...)
+
+	podSpec.InitContainers = []corev1.Container{}
+	// Base image can be:
+	// - built from a dockerfile and converted to a kairos one
+	// - built by converting an existing image to a kairos one
+	// - a prebuilt kairos image
+	if artifact.Spec.BaseImageDockerfile != nil {
+		podSpec.InitContainers = append(podSpec.InitContainers, baseImageBuildContainers()...)
+	} else if artifact.Spec.BaseImageName != "" { // Existing base image - non kairos
+		podSpec.InitContainers = append(podSpec.InitContainers,
+			unpackContainer("baseimage-non-kairos", r.ToolImage, artifact.Spec.BaseImageName))
+	} else { // Existing Kairos base image
+		podSpec.InitContainers = append(podSpec.InitContainers, unpackContainer("baseimage", r.ToolImage, artifact.Spec.ImageName))
 	}
 
-	podSpec.InitContainers = []corev1.Container{unpackContainer("baseimage", r.ToolImage, artifact.Spec.ImageName)}
+	// If base image was a non kairos one, either one we built with kaniko or prebuilt,
+	// convert it to a Kairos one, in a best effort manner.
+	if artifact.Spec.BaseImageDockerfile != nil || artifact.Spec.BaseImageName != "" {
+		podSpec.InitContainers = append(podSpec.InitContainers,
+			corev1.Container{
+				ImagePullPolicy: corev1.PullAlways,
+				Name:            "convert-to-kairos",
+				Image:           "busybox",
+				Command:         []string{"/bin/echo"},
+				Args:            []string{"TODO"},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "rootfs",
+						MountPath: "/rootfs",
+					},
+				},
+			})
+	}
 
 	for i, bundle := range artifact.Spec.Bundles {
 		podSpec.InitContainers = append(podSpec.InitContainers, unpackContainer(fmt.Sprint(i), r.ToolImage, bundle))
@@ -351,4 +392,60 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 
 func ptr[T any](val T) *T {
 	return &val
+}
+
+func baseImageBuildContainers() []corev1.Container {
+	return []corev1.Container{
+		corev1.Container{
+			ImagePullPolicy: corev1.PullAlways,
+			Name:            "kaniko-build",
+			Image:           "gcr.io/kaniko-project/executor:latest",
+			Args: []string{
+				"--dockerfile", "dockerfile/Dockerfile",
+				"--context", "dir://workspace",
+				"--destination", "whatever", // We don't push, but it needs this
+				"--tar-path", "/rootfs/image.tar",
+				"--no-push",
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "rootfs",
+					MountPath: "/rootfs",
+				},
+				{
+					Name:      "dockerfile",
+					MountPath: "/workspace/dockerfile",
+				},
+			},
+		},
+		corev1.Container{
+			ImagePullPolicy: corev1.PullAlways,
+			Name:            "image-extractor",
+			Image:           "quay.io/luet/base",
+			Args: []string{
+				"util", "unpack", "--local", "file:////rootfs/image.tar", "/rootfs",
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "rootfs",
+					MountPath: "/rootfs",
+				},
+			},
+		},
+		corev1.Container{
+			ImagePullPolicy: corev1.PullAlways,
+			Name:            "cleanup",
+			Image:           "busybox",
+			Command:         []string{"/bin/rm"},
+			Args: []string{
+				"/rootfs/image.tar",
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "rootfs",
+					MountPath: "/rootfs",
+				},
+			},
+		},
+	}
 }

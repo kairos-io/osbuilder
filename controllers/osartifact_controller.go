@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+
 	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -99,41 +100,69 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 }
 
-func (r *OSArtifactReconciler) startBuild(ctx context.Context, artifact *osbuilder.OSArtifact) (ctrl.Result, error) {
-	// generate configmap required for building a custom image
+// CreateConfigMap generates a configmap required for building a custom image
+func (r *OSArtifactReconciler) CreateConfigMap(ctx context.Context, artifact *osbuilder.OSArtifact) error {
 	cm := r.genConfigMap(artifact)
 	if cm.Labels == nil {
 		cm.Labels = map[string]string{}
 	}
 	cm.Labels[artifactLabel] = artifact.Name
 	if err := controllerutil.SetOwnerReference(artifact, cm, r.Scheme()); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return err
 	}
 	if err := r.Create(ctx, cm); err != nil && !apierrors.IsAlreadyExists(err) {
-		return ctrl.Result{Requeue: true}, err
+		return err
 	}
 
+	return nil
+}
+
+func (r *OSArtifactReconciler) createPVC(ctx context.Context, artifact *osbuilder.OSArtifact) (*corev1.PersistentVolumeClaim, error) {
 	pvc := r.newArtifactPVC(artifact)
 	if pvc.Labels == nil {
 		pvc.Labels = map[string]string{}
 	}
 	pvc.Labels[artifactLabel] = artifact.Name
 	if err := controllerutil.SetOwnerReference(artifact, pvc, r.Scheme()); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return pvc, err
 	}
 	if err := r.Create(ctx, pvc); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return pvc, err
 	}
 
+	return pvc, nil
+}
+
+func (r *OSArtifactReconciler) createBuilderPod(ctx context.Context, artifact *osbuilder.OSArtifact, pvc *corev1.PersistentVolumeClaim) (*corev1.Pod, error) {
 	pod := r.newBuilderPod(pvc.Name, artifact)
 	if pod.Labels == nil {
 		pod.Labels = map[string]string{}
 	}
 	pod.Labels[artifactLabel] = artifact.Name
 	if err := controllerutil.SetOwnerReference(artifact, pod, r.Scheme()); err != nil {
+		return pod, err
+	}
+
+	if err := r.Create(ctx, pod); err != nil {
+		return pod, err
+	}
+
+	return pod, nil
+}
+
+func (r *OSArtifactReconciler) startBuild(ctx context.Context, artifact *osbuilder.OSArtifact) (ctrl.Result, error) {
+	err := r.CreateConfigMap(ctx, artifact)
+	if err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
-	if err := r.Create(ctx, pod); err != nil {
+
+	pvc, err := r.createPVC(ctx, artifact)
+	if err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	_, err = r.createBuilderPod(ctx, artifact, pvc)
+	if err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
