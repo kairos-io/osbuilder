@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/onsi/ginkgo/v2 v2.9.5
 	github.com/onsi/gomega v1.27.7
+	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
 	k8s.io/api v0.24.0
 	k8s.io/apimachinery v0.24.0
 	k8s.io/client-go v0.24.0

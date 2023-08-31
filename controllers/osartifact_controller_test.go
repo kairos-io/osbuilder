@@ -2,11 +2,13 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/phayes/freeport"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -49,8 +51,13 @@ var _ = Describe("OSArtifactReconciler", func() {
 		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 		utilruntime.Must(osbuilder.AddToScheme(scheme))
 
+		metricsPort, err := freeport.GetFreePort()
+		Expect(err).ToNot(HaveOccurred())
+
+		fmt.Printf("metricsPort = %+v\n", metricsPort)
 		mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-			Scheme: scheme,
+			Scheme:             scheme,
+			MetricsBindAddress: fmt.Sprintf("127.0.0.1:%d", metricsPort),
 		})
 		Expect(err).ToNot(HaveOccurred())
 
