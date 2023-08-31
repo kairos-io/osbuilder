@@ -319,64 +319,12 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 	podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, artifact.Spec.ImagePullSecrets...)
 
 	podSpec.InitContainers = []corev1.Container{}
-	// TODO: Decide how we build the base image here:
-	// - build a base image from a dockerfile and convert it to a kairos one
-	// - convert an existing image to a kairos one
-	// - prebuilt kairos image exists
+	// Base image can be:
+	// - built from a dockerfile and converted to a kairos one
+	// - built by converting an existing image to a kairos one
+	// - a prebuilt kairos image
 	if artifact.Spec.BaseImageDockerfile != nil {
-		podSpec.InitContainers = append(podSpec.InitContainers,
-			corev1.Container{
-				ImagePullPolicy: corev1.PullAlways,
-				Name:            "kaniko-build",
-				Image:           "gcr.io/kaniko-project/executor:latest",
-				Args: []string{
-					"--dockerfile", "dockerfile/Dockerfile",
-					"--context", "dir://workspace",
-					"--destination", "whatever", // We don't push, but it needs this
-					"--tar-path", "/rootfs/image.tar",
-					"--no-push",
-				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      "rootfs",
-						MountPath: "/rootfs",
-					},
-					{
-						Name:      "dockerfile",
-						MountPath: "/workspace/dockerfile",
-					},
-				},
-			},
-			corev1.Container{
-				ImagePullPolicy: corev1.PullAlways,
-				Name:            "image-extractor",
-				Image:           "quay.io/luet/base",
-				Args: []string{
-					"util", "unpack", "--local", "file:////rootfs/image.tar", "/rootfs",
-				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      "rootfs",
-						MountPath: "/rootfs",
-					},
-				},
-			},
-			corev1.Container{
-				ImagePullPolicy: corev1.PullAlways,
-				Name:            "cleanup",
-				Image:           "busybox",
-				Command:         []string{"/bin/rm"},
-				Args: []string{
-					"/rootfs/image.tar",
-				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      "rootfs",
-						MountPath: "/rootfs",
-					},
-				},
-			},
-		)
+		podSpec.InitContainers = append(podSpec.InitContainers, baseImageBuildContainers()...)
 	} else if artifact.Spec.BaseImageName != "" { // Existing base image - non kairos
 		podSpec.InitContainers = append(podSpec.InitContainers,
 			unpackContainer("baseimage-non-kairos", r.ToolImage, artifact.Spec.BaseImageName))
@@ -444,4 +392,60 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 
 func ptr[T any](val T) *T {
 	return &val
+}
+
+func baseImageBuildContainers() []corev1.Container {
+	return []corev1.Container{
+		corev1.Container{
+			ImagePullPolicy: corev1.PullAlways,
+			Name:            "kaniko-build",
+			Image:           "gcr.io/kaniko-project/executor:latest",
+			Args: []string{
+				"--dockerfile", "dockerfile/Dockerfile",
+				"--context", "dir://workspace",
+				"--destination", "whatever", // We don't push, but it needs this
+				"--tar-path", "/rootfs/image.tar",
+				"--no-push",
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "rootfs",
+					MountPath: "/rootfs",
+				},
+				{
+					Name:      "dockerfile",
+					MountPath: "/workspace/dockerfile",
+				},
+			},
+		},
+		corev1.Container{
+			ImagePullPolicy: corev1.PullAlways,
+			Name:            "image-extractor",
+			Image:           "quay.io/luet/base",
+			Args: []string{
+				"util", "unpack", "--local", "file:////rootfs/image.tar", "/rootfs",
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "rootfs",
+					MountPath: "/rootfs",
+				},
+			},
+		},
+		corev1.Container{
+			ImagePullPolicy: corev1.PullAlways,
+			Name:            "cleanup",
+			Image:           "busybox",
+			Command:         []string{"/bin/rm"},
+			Args: []string{
+				"/rootfs/image.tar",
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "rootfs",
+					MountPath: "/rootfs",
+				},
+			},
+		},
+	}
 }
