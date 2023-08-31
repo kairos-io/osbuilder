@@ -263,6 +263,9 @@ kind-setup:
 kind-setup-image: docker-build
 	kind load docker-image --name $(CLUSTER_NAME) ${IMG}
 
+kind-teardown:
+	kind delete cluster --name ${CLUSTER_NAME} || true
+
 .PHONY: test_deps
 test_deps:
 	go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
@@ -275,10 +278,10 @@ unit-tests: test_deps
 e2e-tests:
 	GINKGO=$(GINKGO) KUBE_VERSION=${KUBE_VERSION} $(ROOT_DIR)/script/test.sh
 
-controller-tests:
+controller-tests: ginkgo kind-setup install undeploy-dev deploy-dev
 	USE_EXISTING_CLUSTER=true go run  github.com/onsi/ginkgo/v2/ginkgo -v run controllers/.
 
-kind-e2e-tests: ginkgo kind-setup install undeploy-dev deploy-dev e2e-tests controller-tests
+kind-e2e-tests: ginkgo kind-setup install undeploy-dev deploy-dev e2e-tests
 
 kubesplit: manifests kustomize
 	rm -rf helm-chart
