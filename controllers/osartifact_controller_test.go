@@ -74,7 +74,8 @@ var _ = Describe("OSArtifactReconciler", func() {
 		resp, err := artifacts.Create(context.TODO(), &uArtifact, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		// Update the local object with the one fetched from k8s
-		runtime.DefaultUnstructuredConverter.FromUnstructured(resp.Object, artifact)
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(resp.Object, artifact)
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	AfterEach(func() {

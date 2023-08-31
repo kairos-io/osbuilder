@@ -316,9 +316,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		})
 	}
 
-	for i := range artifact.Spec.ImagePullSecrets {
-		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, artifact.Spec.ImagePullSecrets[i])
-	}
+	podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, artifact.Spec.ImagePullSecrets...)
 
 	podSpec.InitContainers = []corev1.Container{}
 	// TODO: Decide how we build the base image here:
