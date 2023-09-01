@@ -29,7 +29,7 @@ func NewConverterAction(rootfsPath string) *ConverterAction {
 // The best way to do that is to spin up a container with the upstream
 // image (gcr.io/kaniko-project/executor:latest) and mount enki in it.
 // E.g.
-// docker run -it -v "$PWD/enki":/enki --rm --entrypoint "/enki" gcr.io/kaniko-project/executor:latest
+// docker run -it -e PATH=/kaniko -v /tmp -v /home/dimitris/workspace/kairos/osbuilder/tmp/:/context -v "$PWD/build/enki":/enki --rm --entrypoint "/enki" gcr.io/kaniko-project/executor:latest convert /context
 func (ca *ConverterAction) Run() (err error) {
 	dockerfile, err := ca.createDockerfile()
 	if err != nil {
