@@ -396,7 +396,7 @@ func ptr[T any](val T) *T {
 
 func baseImageBuildContainers() []corev1.Container {
 	return []corev1.Container{
-		corev1.Container{
+		{
 			ImagePullPolicy: corev1.PullAlways,
 			Name:            "kaniko-build",
 			Image:           "gcr.io/kaniko-project/executor:latest",
@@ -418,7 +418,7 @@ func baseImageBuildContainers() []corev1.Container {
 				},
 			},
 		},
-		corev1.Container{
+		{
 			ImagePullPolicy: corev1.PullAlways,
 			Name:            "image-extractor",
 			Image:           "quay.io/luet/base",
@@ -432,7 +432,7 @@ func baseImageBuildContainers() []corev1.Container {
 				},
 			},
 		},
-		corev1.Container{
+		{
 			ImagePullPolicy: corev1.PullAlways,
 			Name:            "cleanup",
 			Image:           "busybox",
