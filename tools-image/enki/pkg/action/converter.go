@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 )
 
 // ConverterAction is the action that converts a non-kairos image to a Kairos one.
@@ -29,7 +30,7 @@ func NewConverterAction(rootfsPath string) *ConverterAction {
 // The best way to do that is to spin up a container with the upstream
 // image (gcr.io/kaniko-project/executor:latest) and mount enki in it.
 // E.g.
-// docker run -it -e PATH=/kaniko -v /tmp -v /home/dimitris/workspace/kairos/osbuilder/tmp/:/context -v "$PWD/build/enki":/enki --rm --entrypoint "/enki" gcr.io/kaniko-project/executor:latest convert /context
+// CGO_ENABLED=0 go build -ldflags '-extldflags "-static"' -o build/enki && docker run -it -e PATH=/kaniko -v /tmp -v /home/dimitris/workspace/kairos/osbuilder/tmp/rootfs/:/context -v "$PWD/build/enki":/enki -v $PWD:/build --rm --entrypoint "/enki" gcr.io/kaniko-project/executor:latest convert /context
 func (ca *ConverterAction) Run() (err error) {
 	dockerfile, err := ca.createDockerfile()
 	if err != nil {
@@ -66,8 +67,11 @@ COPY . .
 
 FROM rootfs
 
+RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf
+RUN cat /etc/resolv.conf
+
 # TODO: Do more clever things
-RUN apt-get install -y curl
+RUN apt-get update && apt-get install -y curl
 `)
 
 	if _, err := f.Write(data); err != nil {
@@ -82,11 +86,29 @@ RUN apt-get install -y curl
 // Create a .dockerignore in the rootfs directory to skip these:
 // https://github.com/GoogleContainerTools/kaniko/pull/1724/files#diff-1e90758e2fb0f26bdbfe7a40aafc4b4796cbf808842703e52e16c1f36b8da7dcR89
 func (ca *ConverterAction) addDockerIgnore() error {
+	content := `
+/dev
+/proc
+/run
+/sys
+/var/run
+`
+
+	f, err := os.Create(path.Join(ca.rootFSPath, ".dockerignore"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if _, err := f.Write([]byte(content)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (ca *ConverterAction) removeDockerIgnore() error {
-	return nil
+	return os.RemoveAll(path.Join(ca.rootFSPath, ".dockerignore"))
 }
 
 func (ca *ConverterAction) BuildWithKaniko(dockerfile string) (string, error) {
@@ -95,7 +117,7 @@ func (ca *ConverterAction) BuildWithKaniko(dockerfile string) (string, error) {
 		"--dockerfile", dockerfile,
 		"--context", ca.rootFSPath,
 		"--destination", "whatever",
-		"--tar-path", "image.tar", // TODO: Where do we write? Do we want this extracted to the rootFSPath?
+		"--tar-path", "/build/image.tar", // TODO: Where do we write? Do we want this extracted to the rootFSPath?
 		"--no-push",
 	)
 
