@@ -15,11 +15,15 @@ import (
 // [TBD] The output is the same directory updated to be a Kairos image
 type ConverterAction struct {
 	rootFSPath string
+	resultPath string
+	imageName  string
 }
 
-func NewConverterAction(rootfsPath string) *ConverterAction {
+func NewConverterAction(rootfsPath, resultPath, imageName string) *ConverterAction {
 	return &ConverterAction{
 		rootFSPath: rootfsPath,
+		resultPath: resultPath,
+		imageName:  imageName,
 	}
 }
 
@@ -44,11 +48,10 @@ func (ca *ConverterAction) Run() (err error) {
 	}
 	defer ca.removeDockerIgnore()
 
-	out, err := ca.BuildWithKaniko(dockerfile)
+	out, err := ca.BuildWithKaniko(dockerfile, ca.resultPath)
 	if err != nil {
 		return fmt.Errorf("%w: %s", err, out)
 	}
-	fmt.Printf("out = %+v\n", out)
 
 	return
 }
@@ -111,13 +114,12 @@ func (ca *ConverterAction) removeDockerIgnore() error {
 	return os.RemoveAll(path.Join(ca.rootFSPath, ".dockerignore"))
 }
 
-func (ca *ConverterAction) BuildWithKaniko(dockerfile string) (string, error) {
-	fmt.Printf("ca.rootFSPath = %+v\n", ca.rootFSPath)
+func (ca *ConverterAction) BuildWithKaniko(dockerfile, resultPath string) (string, error) {
 	cmd := exec.Command("executor",
 		"--dockerfile", dockerfile,
 		"--context", ca.rootFSPath,
-		"--destination", "whatever",
-		"--tar-path", "/build/image.tar", // TODO: Where do we write? Do we want this extracted to the rootFSPath?
+		"--destination", ca.imageName, // This is the name of the image when you: cat image.tar | docker load
+		"--tar-path", resultPath, // TODO: Do we want this extracted to the rootFSPath?
 		"--no-push",
 	)
 
