@@ -84,13 +84,18 @@ func (ca *ConverterAction) createDockerfile() (string, error) {
 
 	// write data to the temporary file
 	data := []byte(`
+FROM busybox as builder
+RUN mkdir /rootfs
+COPY . /rootfs/.
+
+RUN echo "nameserver 8.8.8.8" > /rootfs/etc/resolv.conf
+RUN cat /rootfs/etc/resolv.conf
+
 FROM scratch as rootfs
-COPY . .
+
+COPY --from=builder /rootfs/ .
 
 FROM rootfs
-
-RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf
-RUN cat /etc/resolv.conf
 
 # TODO: Do more clever things
 RUN apt-get update && apt-get install -y curl
@@ -136,6 +141,7 @@ func (ca *ConverterAction) removeDockerIgnore() error {
 func (ca *ConverterAction) BuildWithKaniko(dockerfile, resultPath string) (string, error) {
 	d, err := ca.Runner.Run(
 		"executor",
+		//"--verbosity", "debug",
 		"--dockerfile", dockerfile,
 		"--context", ca.rootFSPath,
 		"--destination", ca.imageName, // This is the name of the image when you: cat image.tar | docker load

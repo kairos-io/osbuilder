@@ -10,12 +10,12 @@ import (
 // the root command.
 func NewConvertCmd() *cobra.Command {
 	c := &cobra.Command{
-		Use:   "convert rootfs",
+		Use:   "convert /path/to/rootfs /path/to/result image_name",
 		Short: "Convert a base image to a Kairos image",
 		Long: "Convert a base image to a Kairos image\n\n" +
 			"This is best effort. Enki will try to detect the distribution and add\n" +
 			"the necessary bits to convert it to a Kairos image",
-		Args: cobra.ExactArgs(2),
+		Args: cobra.ExactArgs(3),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return CheckRoot() // TODO: Do we need root?
 		},
