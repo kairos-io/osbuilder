@@ -30,8 +30,11 @@ func NewConvertCmd() *cobra.Command {
 			imageName := args[2]
 
 			logger := v1.NewLogger()
+			runner := action.RealRunner{
+				Logger: logger,
+			}
 
-			convertAction := action.NewConverterAction(rootfsDir, resultPath, imageName)
+			convertAction := action.NewConverterAction(rootfsDir, resultPath, imageName, runner)
 			err := convertAction.Run()
 			if err != nil {
 				logger.Errorf(err.Error())

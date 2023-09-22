@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
+
+	v1 "github.com/kairos-io/kairos-agent/v2/pkg/types/v1"
 )
 
 // ConverterAction is the action that converts a non-kairos image to a Kairos one.
@@ -17,13 +19,30 @@ type ConverterAction struct {
 	rootFSPath string
 	resultPath string
 	imageName  string
+	Runner     Runner
 }
 
-func NewConverterAction(rootfsPath, resultPath, imageName string) *ConverterAction {
+// A runner that can shell-out to other commands but also be mocked in tests.
+type Runner interface {
+	Run(string, ...string) ([]byte, error)
+}
+
+type RealRunner struct {
+	Logger v1.Logger
+}
+
+func (r RealRunner) Run(command string, args ...string) ([]byte, error) {
+	cmd := exec.Command(command, args...)
+
+	return cmd.CombinedOutput()
+}
+
+func NewConverterAction(rootfsPath, resultPath, imageName string, runner Runner) *ConverterAction {
 	return &ConverterAction{
 		rootFSPath: rootfsPath,
 		resultPath: resultPath,
 		imageName:  imageName,
+		Runner:     runner,
 	}
 }
 
@@ -115,18 +134,14 @@ func (ca *ConverterAction) removeDockerIgnore() error {
 }
 
 func (ca *ConverterAction) BuildWithKaniko(dockerfile, resultPath string) (string, error) {
-	cmd := exec.Command("executor",
+	d, err := ca.Runner.Run(
+		"executor",
 		"--dockerfile", dockerfile,
 		"--context", ca.rootFSPath,
 		"--destination", ca.imageName, // This is the name of the image when you: cat image.tar | docker load
 		"--tar-path", resultPath, // TODO: Do we want this extracted to the rootFSPath?
 		"--no-push",
 	)
-
-	d, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("%w: %s", err, string(d))
-	}
 
 	return string(d), err
 }
