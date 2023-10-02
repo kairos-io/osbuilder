@@ -11,7 +11,18 @@ build:
     ENV CGO_ENABLED=0
     RUN go build -ldflags '-extldflags "-static"'
 
-    SAVE ARTIFACT enki AS LOCAL build/enki
+    SAVE ARTIFACT /build/enki enki AS LOCAL build/enki
+
+build-kaniko-enki-image:
+  FROM gcr.io/kaniko-project/executor:latest
+
+  COPY +build/enki /enki
+
+  ENTRYPOINT ["/enki"]
+
+  CMD ["convert"]
+
+  SAVE IMAGE enki:latest
 
 test:
     FROM golang:$GO_VERSION
