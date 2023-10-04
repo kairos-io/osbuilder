@@ -65,4 +65,4 @@ jobs:
           push: true
           tags: ${{ steps.prep.outputs.tags }}
           build-args: |
-            ENKI_VERSION=0.0.1
+            ENKI_VERSION=v0.0.2
