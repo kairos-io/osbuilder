@@ -328,6 +328,8 @@ github.com/kairos-io/kairos-agent/v2 v2.1.11-0.20230713071318-9a16b94e2af6 h1:5t
 github.com/kairos-io/kairos-agent/v2 v2.1.11-0.20230713071318-9a16b94e2af6/go.mod h1:+zG2JtLuTE9TDwiXJg9/jqcD/G59PhdN+Z0G5dcGiJk=
 github.com/kairos-io/kairos-sdk v0.0.9-0.20230719194412-fe26d1de9166 h1:xAsvPm5a7ivervVjkJ5DIZWOQww4Za75erEwZ1Xcd7I=
 github.com/kairos-io/kairos-sdk v0.0.9-0.20230719194412-fe26d1de9166/go.mod h1:AK9poWisuhnzri04diXnTG8L7EkOSUArSeeDn2LYFU0=
+github.com/kairos-io/kairos-sdk v0.0.14 h1:yVKaay70cjmAUY6m4uLoV9UguBv3Dx3JxAh2faRlUZo=
+github.com/kairos-io/kairos-sdk v0.0.14/go.mod h1:+fhVoCEA2hD7OFTmhDmy4pP3uC9q84OYhDa7irkEVWQ=
 github.com/kendru/darwin/go/depgraph v0.0.0-20221105232959-877d6a81060c h1:eKb4PqwAMhlqwXw0W3atpKaYaPGlXE/Fwh+xpCEYaPk=
 github.com/kendru/darwin/go/depgraph v0.0.0-20221105232959-877d6a81060c/go.mod h1:VOfm8h1NySetVlpHDSnbpCMsvCgYaU+YDn4XezUy2+4=
 github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351/go.mod h1:CT57kijsi8u/K/BOFA39wgDQJ9CxiF4nAY/ojJ6r6mM=
@@ -568,6 +570,8 @@ github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9dec
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/zcalusic/sysinfo v0.9.5 h1:ivoHyj9aIAYkwzo1+8QgJ5s4oeE6Etx9FmZtqa4wJjQ=
 github.com/zcalusic/sysinfo v0.9.5/go.mod h1:Z/gPVufBrFc8X5sef3m6kkw3r3nlNFp+I6bvASfvBZQ=
+github.com/zcalusic/sysinfo v1.0.1 h1:cVh8q3codjh43AGRTa54dJ2Zq+qPejv8n2VWpxKViwc=
+github.com/zcalusic/sysinfo v1.0.1/go.mod h1:LxwKwtQdbTIQc65drhjQzYzt0o7jfB80LrrZm7SWn8o=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=

@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/kairos-io/kairos-agent/v2 v2.1.11-0.20230713071318-9a16b94e2af6
-	github.com/kairos-io/kairos-sdk v0.0.9-0.20230719194412-fe26d1de9166
+	github.com/kairos-io/kairos-sdk v0.0.14
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
@@ -125,7 +125,7 @@ require (
 	github.com/willdonnelly/passwd v0.0.0-20141013001024-7935dab3074c // indirect
 	github.com/xanzy/ssh-agent v0.3.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	github.com/zcalusic/sysinfo v0.9.5 // indirect
+	github.com/zcalusic/sysinfo v1.0.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
