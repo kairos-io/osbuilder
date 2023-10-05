@@ -1,23 +1,10 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
 ARG LEAP_VERSION=15.5
 ARG LUET_VERSION=0.34.0
-FROM quay.io/luet/base:$LUET_VERSION AS luet
+ARG ENKI_VERSION=v0.0.2
 
-FROM golang:1.20 as enki
-ENV CGO_ENABLED=0
-COPY ./enki /src/enki
-WORKDIR /src/enki
-RUN go mod download
-# Set arg/env after go mod download, otherwise we invalidate the cached layers due to the commit changing easily
-ARG ENKI_VERSION=0.0.1
-ARG ENKI_COMMIT=""
-ENV ENKI_VERSION=${ENKI_VERSION}
-ENV ENKI_COMMIT=${ENKI_COMMIT}
-RUN go build \
-    -ldflags "-w -s \
-    -X github.com/kairos-io/enki/internal/version.version=$ENKI_VERSION \
-    -X github.com/kairos-io/enki/internal/version.gitCommit=$ENKI_COMMIT" \
-    -o /usr/bin/enki
+FROM quay.io/luet/base:$LUET_VERSION AS luet
+FROM quay.io/kairos/enki:${ENKI_VERSION} as enki
 
 FROM opensuse/leap:$LEAP_VERSION as default
 RUN zypper ref && zypper dup -y
@@ -112,6 +99,6 @@ COPY ./netboot.sh /netboot.sh
 
 COPY defaults.yaml /defaults.yaml
 
-COPY --from=enki /usr/bin/enki /usr/bin/enki
+COPY --from=enki /enki /usr/bin/enki
 
 ENTRYPOINT [ "/entrypoint.sh" ]
