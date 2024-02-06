@@ -1,15 +1,15 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
-ARG LEAP_VERSION=15.5
+ARG FEDORA_VERSION=39
 ARG LUET_VERSION=0.35.0
 ARG ENKI_VERSION=v0.0.16
 
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 FROM quay.io/kairos/enki:${ENKI_VERSION} as enki
 
-FROM opensuse/leap:$LEAP_VERSION as default
-RUN zypper ref && zypper dup -y
+FROM fedora:$FEDORA_VERSION as default
+RUN dnf -y update
 ## ISO+ Arm image + Netboot + cloud images Build depedencies
-RUN zypper ref && zypper in -y bc qemu-tools jq cdrtools docker git curl gptfdisk kpartx sudo xfsprogs parted util-linux-systemd e2fsprogs curl util-linux udev rsync grub2 dosfstools grub2-x86_64-efi squashfs mtools xorriso lvm2 zstd
+RUN dnf in -y bc qemu-tools jq genisoimage docker git curl gdisk kpartx sudo xfsprogs parted e2fsprogs curl util-linux udev rsync grub2 dosfstools mtools xorriso lvm2 zstd sbsigntools grub2-efi-x64 squashfs-tools openssl systemd-ukify systemd-boot
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 ENV LUET_NOLOCK=true
 ENV TMPDIR=/tmp
