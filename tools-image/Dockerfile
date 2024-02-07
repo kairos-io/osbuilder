@@ -9,7 +9,12 @@ FROM quay.io/kairos/enki:${ENKI_VERSION} as enki
 FROM fedora:$FEDORA_VERSION as default
 RUN dnf -y update
 ## ISO+ Arm image + Netboot + cloud images Build depedencies
-RUN dnf in -y bc qemu-tools jq genisoimage docker git curl gdisk kpartx sudo xfsprogs parted e2fsprogs curl util-linux udev rsync grub2 dosfstools mtools xorriso lvm2 zstd sbsigntools grub2-efi-x64 squashfs-tools openssl systemd-ukify systemd-boot
+RUN dnf in -y bc qemu-tools jq genisoimage docker git curl gdisk kpartx sudo xfsprogs parted e2fsprogs curl util-linux udev rsync grub2 dosfstools mtools xorriso lvm2 zstd sbsigntools squashfs-tools openssl systemd-ukify systemd-boot
+# Install grub2-efi-x64 only on x86 arches
+RUN if [ "$(uname -m)" == "x86_64" ]; then dnf install -y grub2-efi-x64; fi
+# Install grub2-efi-arm64 only on arm64 arches
+RUN if [ "$(uname -m)" == "aarch64" ]; then dnf install -y grub2-efi-aa64; fi
+
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 ENV LUET_NOLOCK=true
 ENV TMPDIR=/tmp
