@@ -1,19 +1,16 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
-ARG FEDORA_VERSION=39
+ARG LEAP_VERSION=15.5
 ARG LUET_VERSION=0.35.0
 ARG ENKI_VERSION=v0.0.16
 
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 FROM quay.io/kairos/enki:${ENKI_VERSION} as enki
 
-FROM fedora:$FEDORA_VERSION as default
-RUN dnf -y update
+FROM opensuse/leap:$LEAP_VERSION as default
+RUN zypper ref && zypper dup -y
 ## ISO+ Arm image + Netboot + cloud images Build depedencies
-RUN dnf in -y bc qemu-tools jq genisoimage docker git curl gdisk kpartx sudo xfsprogs parted e2fsprogs curl util-linux udev rsync grub2 dosfstools mtools xorriso lvm2 zstd sbsigntools squashfs-tools openssl systemd-ukify systemd-boot
-# Install grub2-efi-x64 only on x86 arches
-RUN if [ "$(uname -m)" == "x86_64" ]; then dnf install -y grub2-efi-x64; fi
-# Install grub2-efi-arm64 only on arm64 arches
-RUN if [ "$(uname -m)" == "aarch64" ]; then dnf install -y grub2-efi-aa64; fi
+RUN zypper ref && zypper in -y bc qemu-tools jq cdrtools docker git curl gptfdisk kpartx sudo xfsprogs parted util-linux-systemd e2fsprogs curl util-linux udev rsync grub2 dosfstools grub2-x86_64-efi squashfs mtools xorriso lvm2 zstd
+
 
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 ENV LUET_NOLOCK=true
@@ -31,7 +28,15 @@ RUN luet install -y livecd/grub2 --system-target /grub2
 RUN luet install -y livecd/grub2-efi-image --system-target /efi
 
 ## RPI64
-RUN luet install -y firmware/u-boot-rpi64 firmware/raspberrypi-firmware firmware/raspberrypi-firmware-config firmware/raspberrypi-firmware-dt --system-target /rpi/
+RUN luet install -y firmware/raspberrypi-firmware firmware/raspberrypi-firmware-config firmware/raspberrypi-firmware-dt --system-target /rpi/
+
+COPY luet-arm64-old.yaml /tmp/luet-arm64.yaml
+COPY luet-amd64-old.yaml /tmp/luet-amd64.yaml
+RUN cp /tmp/luet-${TARGETARCH}.yaml /etc/luet/luet.yaml
+RUN luet install -y firmware/u-boot-rpi64 --system-target /rpi/
+
+COPY luet-arm64.yaml /tmp/luet-arm64.yaml
+COPY luet-amd64.yaml /tmp/luet-amd64.yaml
 
 ## PineBook64 Pro
 RUN luet install -y arm-vendor-blob/u-boot-rockchip --system-target /pinebookpro/u-boot
