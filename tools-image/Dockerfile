@@ -1,5 +1,5 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
-ARG FEDORA_VERSION=40
+ARG FEDORA_VERSION=38
 ARG LUET_VERSION=0.35.0
 ARG ENKI_VERSION=v0.0.16
 
