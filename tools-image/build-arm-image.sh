@@ -364,14 +364,11 @@ if [ "$model" == "rpi3" ]; then
     sgdisk -m 1:2:3:4 ${output_image}
     sfdisk --part-type ${output_image} 1 c
 elif [ "$model" == "rpi4" ]; then
-    echo "label: gpt" | sfdisk "${output_image}"
     sgdisk -n 1:8192:+96M -c 1:EFI -t 1:0c00 ${output_image}
     sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
     sgdisk -n 3:0:+${recovery_size}M -c 3:recovery -t 3:8300 ${output_image}
     sgdisk -n 4:0:+${oem_size}M -c 4:oem -t 4:8300 ${output_image}
     sgdisk -n 5:0:+64M -c 5:persistent -t 5:8300 ${output_image}
-    sgdisk -g ${output_image}
-    sgdisk -m 1:2:3:4:5 ${output_image}
 else
     sgdisk -n 1:8192:+16M -c 1:EFI -t 1:0700 ${output_image}
     sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
