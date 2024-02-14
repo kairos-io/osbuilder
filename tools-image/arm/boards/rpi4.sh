@@ -2,8 +2,6 @@
 
 partprobe
 
-kpartx -va $DRIVE
-
 image=$1
 
 if [ -z "$image" ]; then

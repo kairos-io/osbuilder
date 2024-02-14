@@ -73,8 +73,12 @@ cleanup() {
   fi
 
   losetup -D "${LOOP}" || true;
-  dmsetup remove KairosVG-oem || true;
-  dmsetup remove KairosVG-recovery || true;
+  losetup -D "${DRIVE}" || true;
+
+  if [ "$model" == "rpi3" ]; then
+    dmsetup remove KairosVG-oem || true;
+    dmsetup remove KairosVG-recovery || true;
+  fi
 }
 
 ensure_dir_structure() {
@@ -364,14 +368,19 @@ if [ "$model" == "rpi3" ]; then
     sgdisk -m 1:2:3:4 ${output_image}
     sfdisk --part-type ${output_image} 1 c
 elif [ "$model" == "rpi4" ]; then
-    echo "label: gpt" | sfdisk "${output_image}"
-    sgdisk -n 1:8192:+96M -c 1:EFI -t 1:0c00 ${output_image}
+    sgdisk -n 1:0:+96M -c 1:EFI -t 1:ef00 ${output_image}
+    partprobe
     sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
+    partprobe
     sgdisk -n 3:0:+${recovery_size}M -c 3:recovery -t 3:8300 ${output_image}
+    partprobe
     sgdisk -n 4:0:+${oem_size}M -c 4:oem -t 4:8300 ${output_image}
+    partprobe
     sgdisk -n 5:0:+64M -c 5:persistent -t 5:8300 ${output_image}
-    sgdisk -g ${output_image}
-    sgdisk -m 1:2:3:4:5 ${output_image}
+    partprobe
+    # Move backup header to end of disk
+    sgdisk -e ${output_image}
+    sgdisk -v ${output_image}
 else
     sgdisk -n 1:8192:+16M -c 1:EFI -t 1:0700 ${output_image}
     sgdisk -n 2:0:+${state_size}M -c 2:state -t 2:8300 ${output_image}
@@ -423,12 +432,12 @@ fi
 # Create partitions (RECOVERY, STATE, COS_PERSISTENT)
 mkfs.vfat -F 32 ${efi}
 fatlabel ${efi} COS_GRUB
-mkfs.ext4 -F -L ${STATE_LABEL} $state
-mkfs.ext4 -F -L ${PERSISTENT_LABEL} $persistent
+mkfs.ext3 -F -L ${STATE_LABEL} $state
+mkfs.ext3 -F -L ${PERSISTENT_LABEL} $persistent
 
 if [ "$model" == 'rpi4' ]; then
-  mkfs.ext4 -F -L ${RECOVERY_LABEL} $recovery
-  mkfs.ext4 -F -L ${OEM_LABEL} $oem
+  mkfs.ext3 -F -L ${RECOVERY_LABEL} $recovery
+  mkfs.ext3 -F -L ${OEM_LABEL} $oem
 else
   pvcreate $recovery
   vgcreate KairosVG $recovery
