@@ -2,4 +2,4 @@
 
 set -ex
 
-enki --config-dir /config $@
+enki --config-dir /config "$@"
