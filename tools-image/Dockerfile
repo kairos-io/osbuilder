@@ -28,7 +28,7 @@ RUN cp /tmp/luet-${TARGETARCH}.yaml /etc/luet/luet.yaml
 
 ## Uki artifacts, will be set under the /usr/kairos directory
 ## We can install both arches, as the artifacts are named differently
-RUN luet install -y system/systemd-boot
+RUN luet install --config /tmp/luet-amd64.yaml -y system/systemd-boot
 RUN luet install --config /tmp/luet-arm64.yaml -y system/systemd-boot
 
 ## Live CD artifacts
