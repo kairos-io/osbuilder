@@ -1,7 +1,7 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
 ARG FEDORA_VERSION=40
 ARG LUET_VERSION=0.35.0
-ARG ENKI_VERSION=v0.0.16
+ARG ENKI_VERSION=v0.0.17-rc2
 
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 FROM quay.io/kairos/enki:${ENKI_VERSION} as enki
