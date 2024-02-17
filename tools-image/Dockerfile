@@ -9,7 +9,10 @@ FROM quay.io/kairos/enki:${ENKI_VERSION} as enki
 FROM fedora:$FEDORA_VERSION as default
 RUN dnf -y update
 ## ISO+ Arm image + Netboot + cloud images Build depedencies
-RUN dnf in -y bc qemu-tools jq genisoimage docker git curl gdisk kpartx sudo xfsprogs parted e2fsprogs curl util-linux udev rsync grub2 dosfstools mtools xorriso lvm2 zstd sbsigntools squashfs-tools openssl systemd-ukify systemd-boot
+RUN dnf in -y bc qemu-tools jq genisoimage docker git curl gdisk kpartx sudo xfsprogs parted e2fsprogs curl  \
+    util-linux udev rsync grub2 dosfstools mtools xorriso lvm2 zstd sbsigntools squashfs-tools openssl \
+    python3-cryptography python3-pefile # ukify deps
+# systemd-ukify systemd-boot
 # Install grub2-efi-x64 only on x86 arches
 RUN if [ "$(uname -m)" == "x86_64" ]; then dnf install -y grub2-efi-x64; fi
 # Install grub2-efi-arm64 only on arm64 arches
@@ -30,6 +33,8 @@ RUN cp /tmp/luet-${TARGETARCH}.yaml /etc/luet/luet.yaml
 ## We can install both arches, as the artifacts are named differently
 RUN luet install --config /tmp/luet-amd64.yaml -y system/systemd-boot
 RUN luet install --config /tmp/luet-arm64.yaml -y system/systemd-boot
+# ukify + measure
+RUN luet install -y system/systemd-ukify
 
 ## Live CD artifacts
 RUN luet install -y livecd/grub2 --system-target /grub2
