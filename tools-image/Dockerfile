@@ -25,9 +25,8 @@ RUN mkdir -p /etc/luet/
 RUN cp /tmp/luet-${TARGETARCH}.yaml /etc/luet/luet.yaml
 
 ## Uki artifacts, will be set under the /usr/kairos directory
-## We can install both arches, as the artifacts are named differently
-RUN luet install --config /tmp/luet-amd64.yaml -y system/systemd-boot
-RUN luet install --config /tmp/luet-arm64.yaml -y system/systemd-boot
+RUN luet install -y system/systemd-boot
+
 # ukify + measure
 RUN luet install -y system/systemd-ukify
 # ukify deps that are not in the suse repos as packages. ukify package provides this so we have the exact versions needed
