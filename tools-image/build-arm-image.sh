@@ -106,7 +106,6 @@ usage()
     echo " --recovery-partition-size: (optional) Size of the recovery partition (MB)"
     echo " --images-size: (optional) Size of the active/passive/recovery images (MB)"
     echo " --docker-image: (optional) A container image which will be used for active/passive/recovery system"
-    echo " --local: (optional) Use local repository when building"
     echo " --directory: (optional) A directory which will be used for active/passive/recovery system"
     echo " --model: (optional) The board model"
     echo " --efi-dir: (optional) A directory with files which will be added to the efi partition"
@@ -158,9 +157,6 @@ while [ "$#" -gt 0 ]; do
         --size)
             shift 1
             size=$1
-            ;;
-        --local)
-            local_build=true
             ;;
         --state-partition-size)
             shift 1
