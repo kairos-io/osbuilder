@@ -7,7 +7,6 @@ set -ex
 load_vars() {
 
   model=${MODEL:-odroid_c2}
-  disable_lvm=${DISABLE_LVM:-false}
   directory=${DIRECTORY:-}
   output_image="${OUTPUT_IMAGE:-arm.img}"
   # Img creation options. Size is in MB for all of the vars below
@@ -106,12 +105,9 @@ usage()
     echo " --recovery-partition-size: (optional) Size of the recovery partition (MB)"
     echo " --images-size: (optional) Size of the active/passive/recovery images (MB)"
     echo " --docker-image: (optional) A container image which will be used for active/passive/recovery system"
-    echo " --local: (optional) Use local repository when building"
     echo " --directory: (optional) A directory which will be used for active/passive/recovery system"
     echo " --model: (optional) The board model"
     echo " --efi-dir: (optional) A directory with files which will be added to the efi partition"
-    echo " --disable-lvm: (optional- no arguments) LVM for the recovery and oem partitions will be disabled"
-    echo " --use-lvm: (deprecated and ignored. Kept for backwards compatibility)"
     exit 1
 }
 
@@ -159,9 +155,6 @@ while [ "$#" -gt 0 ]; do
             shift 1
             size=$1
             ;;
-        --local)
-            local_build=true
-            ;;
         --state-partition-size)
             shift 1
             state_size=$1
@@ -197,12 +190,6 @@ while [ "$#" -gt 0 ]; do
         --repo-type)
             shift 1
             repo_type=$1
-            ;;
-        --disable-lvm)
-            disable_lvm=true
-            ;;
-        --use-lvm)
-            disable_lvm=false
             ;;
         -h)
             usage
