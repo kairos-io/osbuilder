@@ -13,6 +13,25 @@
     {
       "matchUpdateTypes": ["patch"],
       "automerge": true
+    },
+    {
+      "groupName": "repositories",
+      "matchPackagePatterns": ["^quay.io/kairos/packages*"]
+    },
+    {
+      "matchPackagePatterns": ["^quay.io/kairos/packages*"],
+      "versioning": "regex:^(?<major>\\d{14})(?<compatibility>-repository\\.yaml)"
+    }
+  ],
+  "regexManagers": [
+    {
+      "fileMatch": [
+        "^luet-amd64.yaml$",
+        "^luet-arm64.yaml$",
+      ],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>.*?) depName=(?<depName>.*?)?\\s+reference:\\s(?<currentValue>.*?)\\s"
+      ]
     }
   ]
 }
