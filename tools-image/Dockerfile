@@ -1,18 +1,16 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
 ARG LEAP_VERSION=15.5
 ARG LUET_VERSION=0.35.2
-ARG ENKI_VERSION=v0.0.32
+ARG ENKI_VERSION=0.1.0
 
 FROM quay.io/luet/base:$LUET_VERSION AS luet
-FROM quay.io/kairos/enki:${ENKI_VERSION} as enki
+FROM quay.io/kairos/enki:v${ENKI_VERSION} as enki
 
 FROM opensuse/leap:$LEAP_VERSION as default
 RUN zypper ref && zypper dup -y
 ## ISO+ Arm image + Netboot + cloud images Build depedencies
 RUN zypper ref && zypper in -y bc qemu-tools jq cdrtools docker git curl gptfdisk kpartx sudo xfsprogs parted  \
     util-linux-systemd e2fsprogs curl util-linux udev rsync grub2 dosfstools grub2-x86_64-efi squashfs mtools xorriso lvm2 zstd
-RUN zypper in -y python311-pip python311-cryptography sbsigntools tpm2-* # ukify deps
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1  # make python3.11 the default python3 for ukify
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 ENV LUET_NOLOCK=true
 ENV TMPDIR=/tmp
@@ -26,11 +24,6 @@ RUN cp /tmp/luet-${TARGETARCH}.yaml /etc/luet/luet.yaml
 
 ## Uki artifacts, will be set under the /usr/kairos directory
 RUN luet install -y system/systemd-boot
-
-# ukify + measure
-RUN luet install -y system/systemd-ukify
-# ukify deps that are not in the suse repos as packages. ukify package provides this so we have the exact versions needed
-RUN pip3 install -r /usr/kairos/ukify-requirements.txt
 
 ## Live CD artifacts
 RUN luet install -y livecd/grub2 --system-target /grub2
