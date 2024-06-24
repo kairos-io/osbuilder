@@ -18,11 +18,12 @@
       "matchPackagePatterns": ["^quay.io/kairos/packages*"],
       "versioning": "regex:^(?<major>\\d{12})-git(?<patch>[a-f0-9]{8})-repository\\.yaml$"
     },
-{
+    {
       "enabled": true,
       "matchDatasources": [
         "docker"
       ],
+    },
     {
       "matchUpdateTypes": ["patch"],
       "automerge": true
@@ -38,5 +39,5 @@
         "#\\s*renovate:\\s*datasource=(?<datasource>.*?) depName=(?<depName>.*?)?\\s+reference:\\s(?<currentValue>.*?)\\s"
       ]
     }
-    ]
+  ]
 }
