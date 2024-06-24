@@ -9,7 +9,6 @@
     "every weekend"
   ],
   "timezone": "Europe/Brussels",
-  "enabledManagers": ["regex"],
   "packageRules": [
     {
       "groupName": "repositories",
