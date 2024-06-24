@@ -12,4 +12,5 @@ repositories:
     priority: 2
     urls:
       - "quay.io/kairos/packages"
+    # renovate: datasource=docker depName=quay.io/kairos/packages
     reference: 202406131250-git131d0d2d-repository.yaml
