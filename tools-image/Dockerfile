@@ -1,7 +1,7 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
 ARG LEAP_VERSION=15.5
 ARG LUET_VERSION=0.35.2
-ARG ENKI_VERSION=0.1.0
+ARG ENKI_VERSION=0.1.1
 
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 FROM quay.io/kairos/enki:v${ENKI_VERSION} as enki
@@ -9,7 +9,7 @@ FROM quay.io/kairos/enki:v${ENKI_VERSION} as enki
 FROM opensuse/leap:$LEAP_VERSION as default
 RUN zypper ref && zypper dup -y
 ## ISO+ Arm image + Netboot + cloud images Build depedencies
-RUN zypper ref && zypper in -y bc qemu-tools jq cdrtools docker git curl gptfdisk kpartx sudo xfsprogs parted  \
+RUN zypper ref && zypper in -y bc qemu-tools jq cdrtools docker git curl gptfdisk kpartx sudo xfsprogs parted binutils \
     util-linux-systemd e2fsprogs curl util-linux udev rsync grub2 dosfstools grub2-x86_64-efi squashfs mtools xorriso lvm2 zstd
 COPY --from=luet /usr/bin/luet /usr/bin/luet
 ENV LUET_NOLOCK=true
