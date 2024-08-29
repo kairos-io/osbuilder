@@ -3,7 +3,7 @@ module github.com/kairos-io/osbuilder
 go 1.22
 
 require (
-	github.com/onsi/ginkgo/v2 v2.20.1
+	github.com/onsi/ginkgo/v2 v2.20.2
 	github.com/onsi/gomega v1.34.2
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
 	k8s.io/api v0.24.0
