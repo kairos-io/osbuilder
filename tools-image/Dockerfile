@@ -86,7 +86,7 @@ RUN mkdir /config
 COPY ./config.yaml /config/manifest.yaml
 COPY ./entrypoint.sh /entrypoint.sh
 COPY ./add-cloud-init.sh /add-cloud-init.sh
-COPY ./os-release.tmpl /os-release.tmpl
+COPY ./kairos-release.tmpl /kairos-release.tmpl
 COPY ./ipxe.tmpl /ipxe.tmpl
 COPY ./update-os-release.sh /update-os-release.sh
 

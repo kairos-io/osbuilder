@@ -17,7 +17,9 @@
 
 set -ex
 
+[ -f "/workspace/kairos-release" ] && sed -i -n '/KAIROS_/!p' /workspace/kairos-release
+# Clean up old os-release just in case so we dont have stuff lying around
 sed -i -n '/KAIROS_/!p' /workspace/os-release
-envsubst >>/workspace/os-release < /os-release.tmpl
+envsubst >>/workspace/kairos-release < /kairos-release.tmpl
 
-cat /workspace/os-release
+cat /workspace/kairos-release
