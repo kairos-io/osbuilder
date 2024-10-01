@@ -107,6 +107,29 @@ func osReleaseContainer(containerImage string) corev1.Container {
 	}
 }
 
+func kairosReleaseContainer(containerImage string) corev1.Container {
+	return corev1.Container{
+		ImagePullPolicy: corev1.PullAlways,
+		Name:            "kairos-release",
+		Image:           containerImage,
+		Command:         []string{"/bin/bash", "-cxe"},
+		Args: []string{
+			"cp -rfv /etc/kairos-release /rootfs/etc/kairos-release",
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "config",
+				MountPath: "/etc/kairos-release",
+				SubPath:   "kairos-release",
+			},
+			{
+				Name:      "rootfs",
+				MountPath: "/rootfs",
+			},
+		},
+	}
+}
+
 func (r *OSArtifactReconciler) newArtifactPVC(artifact *osbuilder.OSArtifact) *corev1.PersistentVolumeClaim {
 	if artifact.Spec.Volume == nil {
 		artifact.Spec.Volume = &corev1.PersistentVolumeClaimSpec{
@@ -357,6 +380,9 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 
 	if artifact.Spec.OSRelease != "" {
 		podSpec.InitContainers = append(podSpec.InitContainers, osReleaseContainer(r.ToolImage))
+	}
+	if artifact.Spec.KairosRelease != "" {
+		podSpec.InitContainers = append(podSpec.InitContainers, kairosReleaseContainer(r.ToolImage))
 	}
 
 	if artifact.Spec.ISO || artifact.Spec.Netboot {
