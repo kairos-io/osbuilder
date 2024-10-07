@@ -1,7 +1,7 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
 ARG LEAP_VERSION=15.5
 ARG LUET_VERSION=0.35.5
-ARG ENKI_VERSION=0.1.2
+ARG ENKI_VERSION=0.2.0
 
 FROM quay.io/luet/base:$LUET_VERSION AS luet
 FROM quay.io/kairos/enki:v${ENKI_VERSION} as enki
@@ -86,7 +86,7 @@ RUN mkdir /config
 COPY ./config.yaml /config/manifest.yaml
 COPY ./entrypoint.sh /entrypoint.sh
 COPY ./add-cloud-init.sh /add-cloud-init.sh
-COPY ./os-release.tmpl /os-release.tmpl
+COPY ./kairos-release.tmpl /kairos-release.tmpl
 COPY ./ipxe.tmpl /ipxe.tmpl
 COPY ./update-os-release.sh /update-os-release.sh
 
