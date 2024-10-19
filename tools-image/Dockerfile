@@ -1,5 +1,5 @@
 # https://quay.io/repository/kairos/packages?tab=tags&tag=latest
-ARG LEAP_VERSION=15.5
+ARG LEAP_VERSION=15.6
 ARG LUET_VERSION=0.35.5
 ARG ENKI_VERSION=0.2.2
 
