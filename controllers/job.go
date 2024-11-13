@@ -157,7 +157,7 @@ func (r *OSArtifactReconciler) newArtifactPVC(artifact *osbuilder.OSArtifact) *c
 
 func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder.OSArtifact) *corev1.Pod {
 	cmd := fmt.Sprintf(
-		"/entrypoint.sh --debug --name %s build-iso --date=false --output /artifacts dir:/rootfs",
+		"auroraboot --debug build-iso --name %s --date=false --output /artifacts dir:/rootfs",
 		artifact.Name,
 	)
 
@@ -197,7 +197,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 
 	if artifact.Spec.CloudConfigRef != nil || artifact.Spec.GRUBConfig != "" {
 		cmd = fmt.Sprintf(
-			"/entrypoint.sh --debug --name %s build-iso --date=false --overlay-iso /iso/iso-overlay --output /artifacts dir:/rootfs",
+			"auroraboot --debug build-iso --name %s --date=false --overlay-iso /iso/iso-overlay --output /artifacts dir:/rootfs",
 			artifact.Name,
 		)
 	}

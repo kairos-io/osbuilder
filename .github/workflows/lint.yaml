@@ -17,5 +17,5 @@ jobs:
   call-workflow:
     uses: kairos-io/linting-composite-action/.github/workflows/reusable-linting.yaml@v0.0.9
     with:
-      yamldirs: ".github/workflows/ config/ tools-image/"
+      yamldirs: ".github/workflows/ config/"
       is-go: true
