@@ -66,7 +66,7 @@ To install, use helm:
 # Adds the kairos repo to helm
 $ helm repo add kairos https://kairos-io.github.io/helm-charts
 "kairos" has been added to your repositories
-$ helm repo update                                        
+$ helm repo update
 Hang tight while we grab the latest from your chart repositories...
 ...Successfully got an update from the "kairos" chart repository
 Update Complete. ⎈Happy Helming!⎈

@@ -22,16 +22,5 @@
       "matchUpdateTypes": ["patch"],
       "automerge": true
     },
-  ],
-  "regexManagers": [
-    {
-      "fileMatch": [
-        "tools-image/luet-amd64.yaml$",
-        "tools-image/luet-arm64.yaml$"
-      ],
-      "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>.*?) depName=(?<depName>.*?)?\\s+reference:\\s(?<currentValue>.*?)\\s"
-      ]
-    }
   ]
 }
