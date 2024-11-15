@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# TODO: Bump to some recent kubernetes version
 KUBE_VERSION=${KUBE_VERSION:-v1.22.7}
 CLUSTER_NAME="${CLUSTER_NAME:-kairos-osbuilder-e2e}"
 
