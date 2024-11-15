@@ -59,7 +59,7 @@ var _ = Describe("ISO build test", func() {
 										Name:    "test",
 										Image:   "debian:latest",
 										Command: []string{"bash"},
-										Args:    []string{"-xec", "[ -f /artifacts/build/*.iso ]"},
+										Args:    []string{"-xec", "[ -f /artifacts/*.iso ]"},
 										VolumeMounts: []corev1.VolumeMount{
 											{
 												Name:      "artifacts",
