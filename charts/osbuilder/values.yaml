@@ -11,7 +11,7 @@ imagePullSecrets: []
 
 image:
   # controller image to be used. Leave empty to use
-  repository: ""
+  repository: ghcr.io/pluralsh/osbuilder
   # tag of the controller image. Leave empty to use chart's AppVersion
   tag: ""
 

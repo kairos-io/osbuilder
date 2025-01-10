@@ -51,7 +51,7 @@ spec:
                   - '--tool-image={{ .Values.toolsImage.repository | default "quay.io/kairos/auroraboot" }}:{{ .Values.toolsImage.tag | default "latest" }}'
                 command:
                   - /manager
-                image: '{{ .Values.image.repository | default "quay.io/kairos/osbuilder" }}:{{ .Values.image.tag | default .Chart.AppVersion }}'
+                image: '{{ .Values.image.repository | default "ghcr.io/pluralsh/osbuilder" }}:{{ .Values.image.tag | default .Chart.AppVersion }}'
                 livenessProbe:
                     httpGet:
                         path: /healthz
