@@ -1,10 +1,11 @@
 apiVersion: v2
-appVersion: v0.1.0
-description: A Helm chart for osbuilder
-home: https://kairos.io/
-maintainers:
-- email: mudler@kairos.io
-  name: Ettore Di Giacinto
 name: osbuilder
+description: A Helm chart for osbuilder
+appVersion: 0.1.1
+version: 0.1.1
+maintainers:
+  - name: Ettore Di Giacinto
+    email: mudler@kairos.io
+home: https://kairos.io/
 type: application
-version: 0.1.0
+dependencies: []
