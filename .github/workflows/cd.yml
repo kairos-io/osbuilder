@@ -10,7 +10,7 @@ on:
 
 jobs:
   publish:
-    name: Build and push osbuilder image
+    name: Build and Push OSBuilder Image
     runs-on: ubuntu-22.04
     permissions:
       contents: 'read'
@@ -45,7 +45,7 @@ jobs:
         with:
           username: mjgpluralsh
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-      - name: Build and push
+      - name: Build and Push
         uses: docker/build-push-action@v6
         with:
           context: "."
@@ -59,6 +59,8 @@ jobs:
           build-args: |
             GIT_COMMIT=${{ github.sha }}
   release:
+    name: Release Helm Chart and Create Github Release
+    if: startsWith(github.ref, 'refs/tags/')  # Limit job to tag pushes
     permissions:
       contents: write
     runs-on: ubuntu-latest
