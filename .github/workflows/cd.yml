@@ -109,7 +109,7 @@ jobs:
       - name: Helm Dependencies
         run: |
           cd charts/osbuilder
-          helm update dependencies
+          helm dependency update
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
