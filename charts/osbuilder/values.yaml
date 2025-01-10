@@ -13,7 +13,7 @@ image:
   # controller image to be used. Leave empty to use
   repository: ghcr.io/pluralsh/osbuilder
   # tag of the controller image. Leave empty to use chart's AppVersion
-  tag: ""
+  tag: sha-29922d3
 
 toolsImage:
   repository: "quay.io/kairos/auroraboot"
