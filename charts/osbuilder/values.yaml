@@ -1,0 +1,51 @@
+# Settings for the chart.
+
+# nameOverride Replaces the release name of the chart in Chart.yaml file when
+# this is used to construct Kubernetes object names
+nameOverride: ""
+# fullnameOverride completely replaces the generated release name
+fullnameOverride: ""
+
+# Secrets to pull container images from private registries
+imagePullSecrets: []
+
+image:
+  # controller image to be used. Leave empty to use
+  repository: ""
+  # tag of the controller image. Leave empty to use chart's AppVersion
+  tag: ""
+
+toolsImage:
+  repository: "quay.io/kairos/auroraboot"
+  tag: "latest"
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+tls:
+  # source options:
+  # - "cert-manager-self-signed": Scaffold cert-manager integration, and create
+  #   a self-signed certificate with a cert-manager self-signed Issuer. Depends
+  #   on cert-manager. (default)
+  # - "cert-manager": Scafffold cert-manager integration. User configures their
+  #   own Issuer. Depends on cert-manager. Set tls.certManagerIssuerName to the
+  #   desired Issuer.
+  source: cert-manager-self-signed
+  # "cert-manager"-only options:
+  certManagerIssuerName: ""
+
+nginx:
+  pvcSize: 30Gi
+
+## Resource limits & requests
+## Ref: https://kubernetes.io/docs/user-guide/compute-resources/
+resources:
+  controller:
+    limits:
+      cpu: 500m
+      memory: 50Mi
+    requests:
+      cpu: 250m
+      memory: 50Mi

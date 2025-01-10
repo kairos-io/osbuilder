@@ -22,6 +22,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type Model string
+
+const (
+	RPI3 Model = "rpi3"
+	RPI4 Model = "rpi4"
+)
+
 // OSArtifactSpec defines the desired state of OSArtifact
 type OSArtifactSpec struct {
 	// There are 3 ways to specify a Kairos image:
@@ -36,6 +43,10 @@ type OSArtifactSpec struct {
 	BaseImageDockerfile *SecretKeySelector `json:"baseImageDockerfile,omitempty"`
 
 	ISO bool `json:"iso,omitempty"`
+
+	// +kubebuilder:validation:Type:=string
+	// +kubebuilder:validation:Enum:=rpi3;rpi4
+	Model *Model `json:"model,omitempty"`
 
 	//Disk-only stuff
 	DiskSize   string `json:"diskSize,omitempty"`

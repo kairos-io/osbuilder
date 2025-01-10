@@ -1,0 +1,54 @@
+apiVersion: v1
+data:
+    controller_manager_config.yaml: "apiVersion: controller-runtime.sigs.k8s.io/v1alpha1\nkind:
+        ControllerManagerConfig\nhealth:\n  healthProbeBindAddress: :8081\nmetrics:\n
+        \ bindAddress: 127.0.0.1:8080\nwebhook:\n  port: 9443\nleaderElection:\n  leaderElect:
+        true\n  resourceName: 98ca89ca.kairos.io\n#   leaderElectionReleaseOnCancel
+        defines if the leader should step down volume \n#   when the Manager ends.
+        This requires the binary to immediately end when the\n#   Manager is stopped,
+        otherwise, this setting is unsafe. Setting this significantly\n#   speeds
+        up voluntary leader transitions as the new leader don't have to wait\n#   LeaseDuration
+        time first.\n#   In the default scaffold provided, the program ends immediately
+        after \n#   the manager stops, so would be fine to enable this option. However,
+        \n#   if you are doing or is intended to do any operation such as perform
+        cleanups \n#   after the manager stops then its usage might be unsafe.\n#
+        \  leaderElectionReleaseOnCancel: true\n"
+kind: ConfigMap
+metadata:
+    name: osartifactbuilder-operator-manager-config
+    namespace: '{{.Release.Namespace}}'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  nginx.conf: |
+    server {
+      listen       80;
+      server_name  localhost;
+
+      client_max_body_size  11000M;
+
+      #access_log  /var/log/nginx/host.access.log  main;
+
+      location ~ "/upload/([0-9a-zA-Z-.]*)$" {
+        alias     /usr/share/nginx/html/$1;
+        client_body_temp_path  /tmp;
+        dav_methods  PUT DELETE MKCOL COPY MOVE;
+        create_full_put_path   on;
+        dav_access             group:rw  all:r;
+      }
+
+      location / {
+        root   /usr/share/nginx/html;
+        autoindex on;
+      }
+
+      # redirect server error pages to the static page /50x.html
+      #
+      error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+        root   /usr/share/nginx/html;
+      }
+    }

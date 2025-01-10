@@ -201,6 +201,9 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 			artifact.Name,
 		)
 	}
+	if artifact.Spec.Model != nil {
+		cmd = fmt.Sprintf("/build-arm-image.sh --model %s --state-partition-size 6200 --recovery-partition-size 4200 --size 15200 --images-size 2000 --config /iso/iso-overlay/cloud_config.yaml --docker-image %s /artifacts/%s.iso", *artifact.Spec.Model, artifact.Spec.ImageName, artifact.Name)
+	}
 
 	buildIsoContainer := corev1.Container{
 		ImagePullPolicy: corev1.PullAlways,
@@ -406,6 +409,12 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 	}
 
 	podSpec.Containers = append(podSpec.Containers, createImageContainer(r.ToolImage, artifact))
+
+	if artifact.Spec.ISO && artifact.Spec.Model != nil {
+		podSpec.InitContainers = []corev1.Container{}
+		podSpec.Containers = make([]corev1.Container, 0)
+		podSpec.Containers = append(podSpec.Containers, buildIsoContainer)
+	}
 
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{

@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: osartifactbuilder-operator-nginx-public
+    namespace: '{{.Release.Namespace}}'
+spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+        requests:
+            storage: '{{ .Values.nginx.pvcSize }}'
