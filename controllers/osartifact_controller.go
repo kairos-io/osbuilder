@@ -103,6 +103,7 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 // CreateConfigMap generates a configmap required for building a custom image
 func (r *OSArtifactReconciler) CreateConfigMap(ctx context.Context, artifact *osbuilder.OSArtifact) error {
 	cm := r.genConfigMap(artifact)
+
 	if cm.Labels == nil {
 		cm.Labels = map[string]string{}
 	}

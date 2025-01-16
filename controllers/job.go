@@ -19,11 +19,10 @@ package controllers
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func unpackContainer(id, containerImage, pullImage string) corev1.Container {
@@ -43,6 +42,22 @@ func unpackContainer(id, containerImage, pullImage string) corev1.Container {
 			{
 				Name:      "rootfs",
 				MountPath: "/rootfs",
+			},
+		},
+	}
+}
+
+func unpackFileContainer(id, pullImage, name string) corev1.Container {
+	return corev1.Container{
+		ImagePullPolicy: corev1.PullAlways,
+		Name:            fmt.Sprintf("pull-image-%s", id),
+		Image:           "gcr.io/go-containerregistry/crane:latest",
+		Command:         []string{"crane"},
+		Args:            []string{"--platform=linux/arm64", "pull", pullImage, fmt.Sprintf("/rootfs/oem/%s.tar", name)},
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "rootfs",
+				MountPath: "/rootfs/oem",
 			},
 		},
 	}
@@ -138,7 +153,7 @@ func (r *OSArtifactReconciler) newArtifactPVC(artifact *osbuilder.OSArtifact) *c
 			},
 			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
-					"storage": resource.MustParse("10Gi"),
+					"storage": resource.MustParse("20Gi"),
 				},
 			},
 		}
@@ -202,7 +217,10 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		)
 	}
 	if artifact.Spec.Model != nil {
-		cmd = fmt.Sprintf("/build-arm-image.sh --model %s --state-partition-size 6200 --recovery-partition-size 4200 --size 15200 --images-size 2000 --config /iso/iso-overlay/cloud_config.yaml --docker-image %s /artifacts/%s.iso", *artifact.Spec.Model, artifact.Spec.ImageName, artifact.Name)
+		cmd = fmt.Sprintf("/build-arm-image.sh --model %s --directory %s /artifacts/%s.iso", *artifact.Spec.Model, "/rootfs", artifact.Name)
+		if artifact.Spec.CloudConfigRef != nil {
+			cmd = fmt.Sprintf("/build-arm-image.sh --model %s --config /iso/iso-overlay/cloud_config.yaml --directory %s /artifacts/%s.iso", *artifact.Spec.Model, "/rootfs", artifact.Name)
+		}
 	}
 
 	buildIsoContainer := corev1.Container{
@@ -412,7 +430,17 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 
 	if artifact.Spec.ISO && artifact.Spec.Model != nil {
 		podSpec.InitContainers = []corev1.Container{}
+		i := 0
+		for name, bundle := range artifact.Spec.FileBundles {
+			i++
+			podSpec.InitContainers = append(podSpec.InitContainers, unpackFileContainer(fmt.Sprint(i), bundle, name))
+		}
+		for i, bundle := range artifact.Spec.Bundles {
+			podSpec.InitContainers = append(podSpec.InitContainers, unpackContainer(fmt.Sprint(i), r.ToolImage, bundle))
+		}
+		podSpec.InitContainers = append(podSpec.InitContainers, unpackContainer("baseimage", r.ToolImage, artifact.Spec.ImageName))
 		podSpec.Containers = make([]corev1.Container, 0)
+
 		podSpec.Containers = append(podSpec.Containers, buildIsoContainer)
 	}
 

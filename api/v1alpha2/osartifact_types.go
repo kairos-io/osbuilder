@@ -60,9 +60,10 @@ type OSArtifactSpec struct {
 	CloudConfigRef *SecretKeySelector `json:"cloudConfigRef,omitempty"`
 	GRUBConfig     string             `json:"grubConfig,omitempty"`
 
-	Bundles       []string `json:"bundles,omitempty"`
-	OSRelease     string   `json:"osRelease,omitempty"`
-	KairosRelease string   `json:"kairosRelease,omitempty"`
+	Bundles       []string          `json:"bundles,omitempty"`
+	FileBundles   map[string]string `json:"fileBundles,omitempty"`
+	OSRelease     string            `json:"osRelease,omitempty"`
+	KairosRelease string            `json:"kairosRelease,omitempty"`
 
 	ImagePullSecrets []corev1.LocalObjectReference     `json:"imagePullSecrets,omitempty"`
 	Exporters        []batchv1.JobSpec                 `json:"exporters,omitempty"`

@@ -7116,6 +7116,10 @@ spec:
                   - template
                   type: object
                 type: array
+              fileBundles:
+                additionalProperties:
+                  type: string
+                type: object
               gceImage:
                 type: boolean
               grubConfig:

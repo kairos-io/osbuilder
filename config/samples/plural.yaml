@@ -6,21 +6,41 @@ stringData:
   userdata: |
     #cloud-config
     hostname: plural-edge-{{ trunc 10 .MachineID }}
+    
     users:
       - name: "kairos"
-        passwd: "kairos"
+        passwd: kairos
         groups: [ "admin" ]
+    
+    write_files:
+      - path: /etc/rancher/k3s/registries.yaml
+        permissions: "0644"
+        content: |
+          mirrors:
+            "*":  
+    
     k3s:
       enabled: true
       replace_args: true
       args:
         - --node-name=kairos
+        - --embedded-registry
+        - --disable=traefik,servicelb
+    
     bundles:
-    - targets:
-        - run://ghcr.io/pluralsh/kairos-plural-bundle:0.1.4
+      - targets:
+          - run:///plural-bundle.tar
+        local_file: true
+      - targets:
+          - run:///plural-images-bundle.tar
+        local_file: true
+      - targets:
+          - run:///plural-trust-manager-bundle.tar
+        local_file: true    
+
     plural:
-      token: ""
-      url: console.plrl-dev-aws.onplural.sh
+      token:
+      url: https://console.plrl-dev-aws.onplural.sh
 ---
 kind: OSArtifact
 apiVersion: build.kairos.io/v1alpha2
@@ -30,8 +50,10 @@ spec:
   imageName: "quay.io/kairos/alpine:3.19-standard-arm64-rpi4-v3.2.4-k3sv1.31.3-k3s1"
   iso: true
   model: rpi4
-  bundles:
-    - ghcr.io/pluralsh/kairos-plural-bundle:0.1.4
+  fileBundles:
+    plural-bundle: ghcr.io/pluralsh/kairos-plural-bundle:0.1.4
+    plural-images-bundle: ghcr.io/pluralsh/kairos-plural-images-bundle:0.1.1
+    plural-trust-manager-bundle: ghcr.io/pluralsh/kairos-plural-trust-manager-bundle:0.1.0
   cloudConfigRef:
     name: cloud-config
     key: userdata

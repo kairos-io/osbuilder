@@ -108,6 +108,13 @@ func (in *OSArtifactSpec) DeepCopyInto(out *OSArtifactSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.FileBundles != nil {
+		in, out := &in.FileBundles, &out.FileBundles
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.ImagePullSecrets != nil {
 		in, out := &in.ImagePullSecrets, &out.ImagePullSecrets
 		*out = make([]v1.LocalObjectReference, len(*in))
