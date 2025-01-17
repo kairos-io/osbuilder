@@ -1,0 +1,42 @@
+apiVersion: build.kairos.io/v1alpha2
+kind: OSArtifact
+metadata:
+  name: '{{ include "osartifact.fullname" . }}'
+spec:
+  imageName: {{ .Values.image }}
+  iso: true
+  {{- if .Values.device }}
+  model: {{ .Values.device }}
+  {{- end }}
+  fileBundles:
+    {{- range $key, $value := .Values.defaultBundles }}
+    {{ $key }}: {{ $value }}
+    {{- end }}
+    {{- range $key, $value := .Values.bundles }}
+    {{ $key }}: {{ $value }}
+    {{- end }}
+    {{- range $key, $value := .Values.extraBundles }}
+    {{ $key }}: {{ $value }}
+    {{- end }}
+  cloudConfigRef:
+    name: '{{ include "osartifact.fullname" . }}-cloud-config'
+    key: 'cloud-config.yaml'
+  exporters:
+    - template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: upload
+              image: quay.io/curl/curl
+              command:
+                - /bin/sh
+              args:
+                - -c
+                - |
+                  for f in $(ls /artifacts)
+                  do
+                  curl -T /artifacts/$f http://osartifactbuilder-operator-osbuilder-nginx/upload/$f
+                  done
+              volumeMounts:
+                - name: artifacts
+                  mountPath: /artifacts
