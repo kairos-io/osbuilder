@@ -15,6 +15,9 @@ image:
   # tag of the controller image. Leave empty to use chart's AppVersion
   tag:
 
+# The PVC storage size for the build process
+pvcStorageSize: "20Gi"
+
 toolsImage:
   repository: "quay.io/kairos/auroraboot"
   tag: "latest"

@@ -39,7 +39,7 @@ stringData:
         local_file: true    
 
     plural:
-      token:
+      token: abc
       url: https://console.plrl-dev-aws.onplural.sh
 ---
 kind: OSArtifact

@@ -20,6 +20,8 @@ import (
 	"flag"
 	"os"
 
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -52,7 +54,9 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	var serveImage, toolImage, copierImage string
+	var serveImage, toolImage, copierImage, pvcStorage string
+
+	flag.StringVar(&pvcStorage, "pvc-storage-size", "20Gi", "The PVC storage size for building process")
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 
@@ -73,8 +77,7 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "98ca89ca.kairos.io",
@@ -96,9 +99,12 @@ func main() {
 	}
 
 	if err = (&controllers.OSArtifactReconciler{
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
 		ServingImage: serveImage,
 		ToolImage:    toolImage,
 		CopierImage:  copierImage,
+		PVCStorage:   pvcStorage,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OSArtifact")
 		os.Exit(1)

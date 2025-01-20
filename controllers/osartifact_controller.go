@@ -19,6 +19,11 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"k8s.io/apimachinery/pkg/api/meta"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	batchv1 "k8s.io/api/batch/v1"
@@ -26,6 +31,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -35,25 +41,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
+	requeueAfter                    = 5 * time.Second
 	FinalizerName                   = "build.kairos.io/osbuilder-finalizer"
 	artifactLabel                   = "build.kairos.io/artifact"
 	artifactExporterIndexAnnotation = "build.kairos.io/export-index"
+	ready                           = "Ready"
+)
+
+var (
+	requeue = ctrl.Result{RequeueAfter: requeueAfter}
 )
 
 // OSArtifactReconciler reconciles a OSArtifact object
 type OSArtifactReconciler struct {
 	client.Client
-	ServingImage, ToolImage, CopierImage string
-}
-
-func (r *OSArtifactReconciler) InjectClient(c client.Client) error {
-	r.Client = c
-
-	return nil
+	Scheme                                           *runtime.Scheme
+	ServingImage, ToolImage, CopierImage, PVCStorage string
 }
 
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts,verbs=get;list;watch;create;update;patch;delete
@@ -68,22 +74,33 @@ func (r *OSArtifactReconciler) InjectClient(c client.Client) error {
 func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var artifact osbuilder.OSArtifact
-	if err := r.Get(ctx, req.NamespacedName, &artifact); err != nil {
+	artifact := new(osbuilder.OSArtifact)
+	if err := r.Get(ctx, req.NamespacedName, artifact); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{Requeue: true}, err
 	}
-
-	if artifact.DeletionTimestamp != nil {
-		controllerutil.RemoveFinalizer(&artifact, FinalizerName)
-		return ctrl.Result{}, r.Update(ctx, &artifact)
+	if len(artifact.Status.Conditions) == 0 {
+		artifact.Status.Conditions = []metav1.Condition{}
+		meta.SetStatusCondition(&artifact.Status.Conditions, metav1.Condition{
+			Type:   ready,
+			Reason: ready,
+			Status: metav1.ConditionFalse,
+		})
+		if err := r.Status().Update(ctx, artifact); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 
-	if !controllerutil.ContainsFinalizer(&artifact, FinalizerName) {
-		controllerutil.AddFinalizer(&artifact, FinalizerName)
-		if err := r.Update(ctx, &artifact); err != nil {
+	if artifact.DeletionTimestamp != nil {
+		controllerutil.RemoveFinalizer(artifact, FinalizerName)
+		return ctrl.Result{}, r.Update(ctx, artifact)
+	}
+
+	if !controllerutil.ContainsFinalizer(artifact, FinalizerName) {
+		controllerutil.AddFinalizer(artifact, FinalizerName)
+		if err := r.Update(ctx, artifact); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
 	}
@@ -92,11 +109,23 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	switch artifact.Status.Phase {
 	case osbuilder.Exporting:
-		return r.checkExport(ctx, &artifact)
-	case osbuilder.Ready, osbuilder.Error:
-		return ctrl.Result{}, nil
+		return r.checkExport(ctx, artifact)
+	case osbuilder.Ready:
+		meta.SetStatusCondition(&artifact.Status.Conditions, metav1.Condition{
+			Type:   ready,
+			Reason: ready,
+			Status: metav1.ConditionTrue,
+		})
+		return ctrl.Result{}, r.Status().Update(ctx, artifact)
+	case osbuilder.Error:
+		meta.SetStatusCondition(&artifact.Status.Conditions, metav1.Condition{
+			Type:   "Ready",
+			Status: metav1.ConditionFalse,
+			Reason: "Error",
+		})
+		return ctrl.Result{}, r.Status().Update(ctx, artifact)
 	default:
-		return r.checkBuild(ctx, &artifact)
+		return r.checkBuild(ctx, artifact)
 	}
 }
 
@@ -108,7 +137,7 @@ func (r *OSArtifactReconciler) CreateConfigMap(ctx context.Context, artifact *os
 		cm.Labels = map[string]string{}
 	}
 	cm.Labels[artifactLabel] = artifact.Name
-	if err := controllerutil.SetOwnerReference(artifact, cm, r.Scheme()); err != nil {
+	if err := controllerutil.SetOwnerReference(artifact, cm, r.Scheme); err != nil {
 		return err
 	}
 	if err := r.Create(ctx, cm); err != nil && !apierrors.IsAlreadyExists(err) {
@@ -124,7 +153,7 @@ func (r *OSArtifactReconciler) createPVC(ctx context.Context, artifact *osbuilde
 		pvc.Labels = map[string]string{}
 	}
 	pvc.Labels[artifactLabel] = artifact.Name
-	if err := controllerutil.SetOwnerReference(artifact, pvc, r.Scheme()); err != nil {
+	if err := controllerutil.SetOwnerReference(artifact, pvc, r.Scheme); err != nil {
 		return pvc, err
 	}
 	if err := r.Create(ctx, pvc); err != nil {
@@ -140,7 +169,7 @@ func (r *OSArtifactReconciler) createBuilderPod(ctx context.Context, artifact *o
 		pod.Labels = map[string]string{}
 	}
 	pod.Labels[artifactLabel] = artifact.Name
-	if err := controllerutil.SetOwnerReference(artifact, pod, r.Scheme()); err != nil {
+	if err := controllerutil.SetOwnerReference(artifact, pod, r.Scheme); err != nil {
 		return pod, err
 	}
 
@@ -152,6 +181,17 @@ func (r *OSArtifactReconciler) createBuilderPod(ctx context.Context, artifact *o
 }
 
 func (r *OSArtifactReconciler) startBuild(ctx context.Context, artifact *osbuilder.OSArtifact) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	if artifact.Spec.CloudConfigRef != nil {
+		if err := r.Get(ctx, client.ObjectKey{Namespace: artifact.Namespace, Name: artifact.Spec.CloudConfigRef.Name}, &corev1.Secret{}); err != nil {
+			if errors.IsNotFound(err) {
+				logger.Info(fmt.Sprintf("Secret %s/%s not found", artifact.Namespace, artifact.Spec.CloudConfigRef.Name))
+				return requeue, nil
+			}
+			return ctrl.Result{}, err
+		}
+	}
+
 	err := r.CreateConfigMap(ctx, artifact)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, err
@@ -266,7 +306,7 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 				},
 			})
 
-			if err := controllerutil.SetOwnerReference(artifact, job, r.Scheme()); err != nil {
+			if err := controllerutil.SetOwnerReference(artifact, job, r.Scheme); err != nil {
 				return ctrl.Result{Requeue: true}, err
 			}
 
@@ -303,19 +343,19 @@ func (r *OSArtifactReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&osbuilder.OSArtifact{}).
 		Owns(&osbuilder.OSArtifact{}).
 		Watches(
-			&source.Kind{Type: &corev1.Pod{}},
+			&corev1.Pod{},
 			handler.EnqueueRequestsFromMapFunc(r.findOwningArtifact),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
-			&source.Kind{Type: &batchv1.Job{}},
+			&batchv1.Job{},
 			handler.EnqueueRequestsFromMapFunc(r.findOwningArtifact),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }
 
-func (r *OSArtifactReconciler) findOwningArtifact(obj client.Object) []reconcile.Request {
+func (r *OSArtifactReconciler) findOwningArtifact(_ context.Context, obj client.Object) []reconcile.Request {
 	if obj.GetLabels() == nil {
 		return nil
 	}

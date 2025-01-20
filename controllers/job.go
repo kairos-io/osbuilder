@@ -151,9 +151,9 @@ func (r *OSArtifactReconciler) newArtifactPVC(artifact *osbuilder.OSArtifact) *c
 			AccessModes: []corev1.PersistentVolumeAccessMode{
 				corev1.ReadWriteOnce,
 			},
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
-					"storage": resource.MustParse("20Gi"),
+					"storage": resource.MustParse(r.PVCStorage),
 				},
 			},
 		}

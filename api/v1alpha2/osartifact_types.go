@@ -90,6 +90,12 @@ const (
 type OSArtifactStatus struct {
 	// +kubebuilder:default=Pending
 	Phase ArtifactPhase `json:"phase,omitempty"`
+
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 }
 
 //+kubebuilder:object:root=true
