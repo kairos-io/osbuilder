@@ -1,8 +1,8 @@
 apiVersion: v2
 name: osbuilder
 description: A Helm chart for osbuilder
-appVersion: 0.1.4
-version: 0.1.4
+appVersion: 0.1.5
+version: 0.1.5
 dependencies: []
 maintainers:
   - name: Ettore Di Giacinto
