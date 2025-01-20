@@ -19,10 +19,11 @@ package controllers
 import (
 	"fmt"
 
-	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 )
 
 func unpackContainer(id, containerImage, pullImage string) corev1.Container {
@@ -40,8 +41,9 @@ func unpackContainer(id, containerImage, pullImage string) corev1.Container {
 		},
 		VolumeMounts: []corev1.VolumeMount{
 			{
-				Name:      "rootfs",
+				Name:      "artifacts",
 				MountPath: "/rootfs",
+				SubPath:   "rootfs",
 			},
 		},
 	}
@@ -56,8 +58,9 @@ func unpackFileContainer(id, pullImage, name string) corev1.Container {
 		Args:            []string{"--platform=linux/arm64", "pull", pullImage, fmt.Sprintf("/rootfs/oem/%s.tar", name)},
 		VolumeMounts: []corev1.VolumeMount{
 			{
-				Name:      "rootfs",
+				Name:      "artifacts",
 				MountPath: "/rootfs/oem",
+				SubPath:   "rootfs",
 			},
 		},
 	}
@@ -88,12 +91,14 @@ func createImageContainer(containerImage string, artifact *osbuilder.OSArtifact)
 		},
 		VolumeMounts: []corev1.VolumeMount{
 			{
-				Name:      "rootfs",
+				Name:      "artifacts",
 				MountPath: "/rootfs",
+				SubPath:   "rootfs",
 			},
 			{
 				Name:      "artifacts",
 				MountPath: "/artifacts",
+				SubPath:   "artifacts",
 			},
 		},
 	}
@@ -115,8 +120,9 @@ func osReleaseContainer(containerImage string) corev1.Container {
 				SubPath:   "os-release",
 			},
 			{
-				Name:      "rootfs",
+				Name:      "artifacts",
 				MountPath: "/rootfs",
+				SubPath:   "rootfs",
 			},
 		},
 	}
@@ -138,8 +144,9 @@ func kairosReleaseContainer(containerImage string) corev1.Container {
 				SubPath:   "kairos-release",
 			},
 			{
-				Name:      "rootfs",
+				Name:      "artifacts",
 				MountPath: "/rootfs",
+				SubPath:   "rootfs",
 			},
 		},
 	}
@@ -180,10 +187,12 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		{
 			Name:      "artifacts",
 			MountPath: "/artifacts",
+			SubPath:   "artifacts",
 		},
 		{
-			Name:      "rootfs",
+			Name:      "artifacts",
 			MountPath: "/rootfs",
+			SubPath:   "rootfs",
 		},
 	}
 
@@ -321,10 +330,6 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 				},
 			},
 			{
-				Name:         "rootfs",
-				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-			},
-			{
 				Name: "config",
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -388,8 +393,9 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 				Args:            []string{"TODO"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      "rootfs",
+						Name:      "artifacts",
 						MountPath: "/rootfs",
+						SubPath:   "rootfs",
 					},
 				},
 			})
@@ -472,8 +478,9 @@ func baseImageBuildContainers() []corev1.Container {
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
-					Name:      "rootfs",
+					Name:      "artifacts",
 					MountPath: "/rootfs",
+					SubPath:   "rootfs",
 				},
 				{
 					Name:      "dockerfile",
@@ -490,8 +497,9 @@ func baseImageBuildContainers() []corev1.Container {
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
-					Name:      "rootfs",
+					Name:      "artifacts",
 					MountPath: "/rootfs",
+					SubPath:   "rootfs",
 				},
 			},
 		},
@@ -505,8 +513,9 @@ func baseImageBuildContainers() []corev1.Container {
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
-					Name:      "rootfs",
+					Name:      "artifacts",
 					MountPath: "/rootfs",
+					SubPath:   "rootfs",
 				},
 			},
 		},

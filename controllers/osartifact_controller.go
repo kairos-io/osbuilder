@@ -68,7 +68,7 @@ type OSArtifactReconciler struct {
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;delete
 //+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;create;delete;watch
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;create;
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;delete
 
