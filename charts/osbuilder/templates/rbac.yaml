@@ -74,6 +74,7 @@ rules:
       - secrets
     verbs:
       - get
+      - list
   - apiGroups:
       - batch
     resources:

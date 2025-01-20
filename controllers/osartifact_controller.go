@@ -25,7 +25,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -41,6 +40,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 )
 
 const (
@@ -67,7 +68,7 @@ type OSArtifactReconciler struct {
 //+kubebuilder:rbac:groups=build.kairos.io,resources=osartifacts/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;delete
 //+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;create;delete;watch
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;create;
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;delete
 
