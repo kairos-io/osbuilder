@@ -50,17 +50,23 @@ func unpackContainer(id, containerImage, pullImage string) corev1.Container {
 }
 
 func unpackFileContainer(id, pullImage, name string) corev1.Container {
+	//var rootID int64 = 0
+
 	return corev1.Container{
 		ImagePullPolicy: corev1.PullAlways,
 		Name:            fmt.Sprintf("pull-image-%s", id),
 		Image:           "gcr.io/go-containerregistry/crane:latest",
 		Command:         []string{"crane"},
 		Args:            []string{"--platform=linux/arm64", "pull", pullImage, fmt.Sprintf("/rootfs/oem/%s.tar", name)},
+		//SecurityContext: &corev1.SecurityContext{
+		//	RunAsUser:  &rootID,
+		//	RunAsGroup: &rootID,
+		//},
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      "artifacts",
 				MountPath: "/rootfs/oem",
-				SubPath:   "rootfs",
+				SubPath:   "rootfs/oem",
 			},
 		},
 	}
@@ -226,9 +232,9 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		)
 	}
 	if artifact.Spec.Model != nil {
-		cmd = fmt.Sprintf("/build-arm-image.sh --model %s --directory %s /artifacts/%s.iso", *artifact.Spec.Model, "/rootfs", artifact.Name)
+		cmd = fmt.Sprintf("/build-arm-image.sh --model %s --directory %s --recovery-partition-size 5120 --state-parition-size 6144 --size 16384 --images-size 4096 /artifacts/%s.iso", *artifact.Spec.Model, "/rootfs", artifact.Name)
 		if artifact.Spec.CloudConfigRef != nil {
-			cmd = fmt.Sprintf("/build-arm-image.sh --model %s --config /iso/iso-overlay/cloud_config.yaml --directory %s /artifacts/%s.iso", *artifact.Spec.Model, "/rootfs", artifact.Name)
+			cmd = fmt.Sprintf("/build-arm-image.sh --model %s --config /iso/iso-overlay/cloud_config.yaml --directory %s --recovery-partition-size 5120 --state-partition-size 6144 --size 16384 --images-size 4096 /artifacts/%s.iso", *artifact.Spec.Model, "/rootfs", artifact.Name)
 		}
 	}
 
@@ -372,6 +378,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 	// - built from a dockerfile and converted to a kairos one
 	// - built by converting an existing image to a kairos one
 	// - a prebuilt kairos image
+
 	if artifact.Spec.BaseImageDockerfile != nil {
 		podSpec.InitContainers = append(podSpec.InitContainers, baseImageBuildContainers()...)
 	} else if artifact.Spec.BaseImageName != "" { // Existing base image - non kairos
@@ -436,6 +443,19 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 
 	if artifact.Spec.ISO && artifact.Spec.Model != nil {
 		podSpec.InitContainers = []corev1.Container{}
+
+		podSpec.InitContainers = append(podSpec.InitContainers, corev1.Container{
+			Name:    "create-directories",
+			Image:   "busybox",
+			Command: []string{"sh", "-c", "mkdir -p /mnt/pv/artifacts && mkdir -p /mnt/pv/rootfs/oem && chown -R 65532:65532 /mnt/pv/artifacts && chown -R 65532:65532 /mnt/pv/rootfs && chown -R 65532:65532 /mnt/pv/rootfs/oem"},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "artifacts",
+					MountPath: "/mnt/pv",
+				},
+			},
+		})
+
 		i := 0
 		for name, bundle := range artifact.Spec.FileBundles {
 			i++

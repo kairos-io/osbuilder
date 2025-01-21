@@ -249,7 +249,8 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 			artifactLabel: artifact.Name,
 		}),
 	}); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		log.FromContext(ctx).Error(err, "failed to list jobs")
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	indexedJobs := make(map[string]*batchv1.Job, len(artifact.Spec.Exporters))
@@ -264,7 +265,8 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 	var pvcs corev1.PersistentVolumeClaimList
 	var pvc *corev1.PersistentVolumeClaim
 	if err := r.List(ctx, &pvcs, &client.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set{artifactLabel: artifact.Name})}); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		log.FromContext(ctx).Error(err, "failed to list PVCs")
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	for _, item := range pvcs.Items {
@@ -308,11 +310,13 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 			})
 
 			if err := controllerutil.SetOwnerReference(artifact, job, r.Scheme); err != nil {
-				return ctrl.Result{Requeue: true}, err
+				log.FromContext(ctx).Error(err, "failed to set owner reference on job")
+				return ctrl.Result{Requeue: true}, nil
 			}
 
 			if err := r.Create(ctx, job); err != nil {
-				return ctrl.Result{Requeue: true}, err
+				log.FromContext(ctx).Error(err, "failed to create job")
+				return ctrl.Result{Requeue: true}, nil
 			}
 
 		} else if job.Spec.Completions == nil || *job.Spec.Completions == 1 {
@@ -322,7 +326,8 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 		} else if *job.Spec.BackoffLimit <= job.Status.Failed {
 			artifact.Status.Phase = osbuilder.Error
 			if err := r.Status().Update(ctx, artifact); err != nil {
-				return ctrl.Result{Requeue: true}, err
+				log.FromContext(ctx).Error(err, "failed to update artifact status")
+				return ctrl.Result{Requeue: true}, nil
 			}
 			break
 		}
@@ -331,7 +336,8 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 	if succeeded == len(artifact.Spec.Exporters) {
 		artifact.Status.Phase = osbuilder.Ready
 		if err := r.Status().Update(ctx, artifact); err != nil {
-			return ctrl.Result{Requeue: true}, err
+			log.FromContext(ctx).Error(err, "failed to update artifact status")
+			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 

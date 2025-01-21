@@ -15,6 +15,8 @@ image:
   # tag of the controller image. Leave empty to use chart's AppVersion
   tag:
 
+replicas: 1
+
 # The PVC storage size for the build process
 pvcStorageSize: "20Gi"
 
