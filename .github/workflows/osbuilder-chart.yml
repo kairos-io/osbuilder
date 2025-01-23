@@ -1,4 +1,4 @@
-name: Publish Chart
+name: Publish OS Builder Chart
 
 on:
   push:
