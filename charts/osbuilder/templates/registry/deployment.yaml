@@ -65,11 +65,8 @@ spec:
               containerPort: 5001
               protocol: TCP
             {{- end }}
-          volumeMounts:
-            - name: tls-volume
-              mountPath: /etc/tls
-              readOnly: true
           {{- if and (eq .Values.registry.auth.realm "basic-realm") (or .Values.registry.auth.htpasswd.existingSecret.name .Values.registry.auth.htpasswd.secret.name) }}
+          volumeMounts:
             - name: htpasswd-volume
               mountPath: /etc/htpasswd
               readOnly: true
