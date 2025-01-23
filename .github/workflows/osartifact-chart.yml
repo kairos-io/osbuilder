@@ -3,7 +3,7 @@ name: Publish OS Artifact Chart
 on:
   push:
     paths:
-      - charts/osartifact
+      - charts/osartifact/**
     branches:
       - master
 

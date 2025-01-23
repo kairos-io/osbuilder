@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - charts/osbuilder
+      - charts/osbuilder/**
     branches:
       - master
 
