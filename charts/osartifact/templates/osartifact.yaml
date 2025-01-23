@@ -1,7 +1,8 @@
 apiVersion: build.kairos.io/v1alpha2
 kind: OSArtifact
 metadata:
-  name: '{{ include "osartifact.fullname" . }}'
+  name: {{ include "osartifact.fullname" . }}
+  namespace: {{ .Release.Namespace }}
 spec:
   imageName: {{ .Values.image }}
   iso: true
@@ -19,24 +20,13 @@ spec:
     {{ $key }}: {{ $value }}
     {{- end }}
   cloudConfigRef:
-    name: '{{ include "osartifact.fullname" . }}-cloud-config'
-    key: 'cloud-config.yaml'
-  exporters:
-    - template:
-        spec:
-          restartPolicy: Never
-          containers:
-            - name: upload
-              image: quay.io/curl/curl
-              command:
-                - /bin/sh
-              args:
-                - -c
-                - |
-                  for f in $(ls /artifacts)
-                  do
-                  curl -T /artifacts/$f http://osartifactbuilder-operator-osbuilder-nginx/upload/$f
-                  done
-              volumeMounts:
-                - name: artifacts
-                  mountPath: /artifacts
+    name: {{ include "osartifact.fullname" . }}-config
+    key: cloud-config.yaml
+  outputImage:
+    registry: {{ .Values.exporter.registry }}
+    repository: {{ .Values.exporter.repository }}
+    tag: {{ .Values.exporter.tag }}
+    username: {{ .Values.exporter.username }}
+    passwordSecretKeyRef:
+      name: {{ .Values.exporter.configSecret.name | default (printf "%s-%s" (include "osartifact.fullname" .) "config") }}
+      key: {{ .Values.exporter.configSecret.key }}

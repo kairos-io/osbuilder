@@ -24,10 +24,9 @@ project: default
 # Console URL that will be used by the device to join the fleet, i.e. console.plrl-xyz.onplural.sh
 url: ~
 
+# Secret that holds bootstrap token used to register the cluster within Plural
 tokenSecret:
-  # Name of the secret that holds the bootstrap token
   name: ~
-  # Key in the secret that holds the bootstrap token
   key: token
 
 # A list of our required bundles that should be added to the result ISO image.
@@ -63,3 +62,24 @@ extraUserCloudConfig: ~
 #          kairos:
 #            - github:myusername
 extraCloudConfig: ~
+
+# Export configuration for the final ISO images
+exporter:
+  # Docker registry DNS name where we should export packed ISO images
+  registry: ~
+  # Name of the repository where images should be stored
+  repository: plural-edge
+  # Image tag that should be used when pushing to the registry
+  tag: latest
+  # Repository username used for basic auth
+  username: ~
+  # Secret that stores just the password for the docker registry user.
+  # One of 'passwordSecret' or 'configSecret' must be provided.
+  passwordSecret:
+    name: ~
+    key: password
+  # Secret configuration that stores the docker config.json file with the auth information.
+  # It is in the default docker format.
+  configSecret:
+    name: ~
+    key: config.json
