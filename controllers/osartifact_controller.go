@@ -80,7 +80,7 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 	if len(artifact.Status.Conditions) == 0 {
 		artifact.Status.Conditions = []metav1.Condition{}
@@ -89,8 +89,8 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			Reason: ready,
 			Status: metav1.ConditionFalse,
 		})
-		if err := r.Status().Update(ctx, artifact); err != nil {
-			return ctrl.Result{Requeue: true}, err
+		if err := TryToUpdateStatus(ctx, r.Client, artifact); err != nil {
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -117,35 +117,17 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			Reason: ready,
 			Status: metav1.ConditionTrue,
 		})
-		return ctrl.Result{}, r.Status().Update(ctx, artifact)
+		return ctrl.Result{}, TryToUpdateStatus(ctx, r.Client, artifact)
 	case osbuilder.Error:
 		meta.SetStatusCondition(&artifact.Status.Conditions, metav1.Condition{
 			Type:   "Ready",
 			Status: metav1.ConditionFalse,
 			Reason: "Error",
 		})
-		return ctrl.Result{}, r.Status().Update(ctx, artifact)
+		return ctrl.Result{}, TryToUpdateStatus(ctx, r.Client, artifact)
 	default:
 		return r.checkBuild(ctx, artifact)
 	}
-}
-
-// CreateConfigMap generates a configmap required for building a custom image
-func (r *OSArtifactReconciler) CreateConfigMap(ctx context.Context, artifact *osbuilder.OSArtifact) error {
-	cm := r.genConfigMap(artifact)
-
-	if cm.Labels == nil {
-		cm.Labels = map[string]string{}
-	}
-	cm.Labels[artifactLabel] = artifact.Name
-	if err := controllerutil.SetOwnerReference(artifact, cm, r.Scheme); err != nil {
-		return err
-	}
-	if err := r.Create(ctx, cm); err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-
-	return nil
 }
 
 func (r *OSArtifactReconciler) createPVC(ctx context.Context, artifact *osbuilder.OSArtifact) (*corev1.PersistentVolumeClaim, error) {
@@ -193,11 +175,6 @@ func (r *OSArtifactReconciler) startBuild(ctx context.Context, artifact *osbuild
 		}
 	}
 
-	err := r.CreateConfigMap(ctx, artifact)
-	if err != nil {
-		return ctrl.Result{Requeue: true}, err
-	}
-
 	pvc, err := r.createPVC(ctx, artifact)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, err
@@ -209,8 +186,8 @@ func (r *OSArtifactReconciler) startBuild(ctx context.Context, artifact *osbuild
 	}
 
 	artifact.Status.Phase = osbuilder.Building
-	if err := r.Status().Update(ctx, artifact); err != nil {
-		return ctrl.Result{Requeue: true}, err
+	if err := TryToUpdateStatus(ctx, r.Client, artifact); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -223,17 +200,17 @@ func (r *OSArtifactReconciler) checkBuild(ctx context.Context, artifact *osbuild
 			artifactLabel: artifact.Name,
 		}),
 	}); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	for _, pod := range pods.Items {
 		switch pod.Status.Phase {
 		case corev1.PodSucceeded:
 			artifact.Status.Phase = osbuilder.Exporting
-			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, artifact)
+			return ctrl.Result{}, TryToUpdateStatus(ctx, r.Client, artifact)
 		case corev1.PodFailed:
 			artifact.Status.Phase = osbuilder.Error
-			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, artifact)
+			return ctrl.Result{}, TryToUpdateStatus(ctx, r.Client, artifact)
 		case corev1.PodPending, corev1.PodRunning:
 			return ctrl.Result{}, nil
 		}
@@ -243,6 +220,8 @@ func (r *OSArtifactReconciler) checkBuild(ctx context.Context, artifact *osbuild
 }
 
 func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuilder.OSArtifact) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+
 	var jobs batchv1.JobList
 	if err := r.List(ctx, &jobs, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
@@ -253,7 +232,7 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	indexedJobs := make(map[string]*batchv1.Job, len(artifact.Spec.Exporters))
+	indexedJobs := make(map[string]*batchv1.Job, 1)
 	for _, job := range jobs.Items {
 		if job.GetAnnotations() != nil {
 			if idx, ok := job.GetAnnotations()[artifactExporterIndexAnnotation]; ok {
@@ -279,9 +258,8 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 		return ctrl.Result{}, fmt.Errorf("failed to locate artifact pvc")
 	}
 
-	var succeeded int
-	for i := range artifact.Spec.Exporters {
-		idx := fmt.Sprintf("%d", i)
+	if artifact.Spec.OutputImage != nil {
+		idx := fmt.Sprintf("%d", 1)
 
 		job := indexedJobs[idx]
 		if job == nil {
@@ -296,15 +274,78 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 						artifactLabel: artifact.Name,
 					},
 				},
-				Spec: artifact.Spec.Exporters[i],
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							RestartPolicy: corev1.RestartPolicyOnFailure,
+							InitContainers: []corev1.Container{
+								{
+									Name:  "init-container",
+									Image: "busybox",
+									Command: []string{
+										"sh", "-c",
+										"echo -e 'FROM scratch\nWORKDIR /build\nCOPY *.iso /build' > /artifacts/Dockerfile",
+									},
+									VolumeMounts: []corev1.VolumeMount{
+										{
+											Name:      "artifacts",
+											MountPath: "/artifacts",
+											SubPath:   "artifacts",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
 			}
+
+			container := corev1.Container{
+				Name:  "exporter",
+				Image: "gcr.io/kaniko-project/executor:latest",
+				Args: []string{
+					"--context=/artifacts/",
+					"--dockerfile=/artifacts/Dockerfile",
+					fmt.Sprintf("--destination=%s/%s:%s", artifact.Spec.OutputImage.Registry, artifact.Spec.OutputImage.Repository, artifact.Spec.OutputImage.Tag),
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "artifacts",
+						MountPath: "/artifacts",
+						SubPath:   "artifacts",
+					},
+				},
+			}
+			if artifact.Spec.OutputImage != nil && artifact.Spec.OutputImage.PasswordSecretKeyRef != nil {
+				if err := r.Get(ctx, client.ObjectKey{Namespace: artifact.Namespace, Name: artifact.Spec.OutputImage.PasswordSecretKeyRef.Name}, &corev1.Secret{}); err != nil {
+					if errors.IsNotFound(err) {
+						logger.Info(fmt.Sprintf("Secret %s/%s not found", artifact.Namespace, artifact.Spec.OutputImage.PasswordSecretKeyRef.Name))
+						return requeue, nil
+					}
+					return ctrl.Result{}, err
+				}
+				container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+					Name:      "docker-secret",
+					MountPath: "/kaniko/.docker",
+				})
+				job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
+					Name: "docker-secret",
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: artifact.Spec.OutputImage.PasswordSecretKeyRef.Name,
+						},
+					},
+				})
+			}
+
+			job.Spec.Template.Spec.Containers = append(job.Spec.Template.Spec.Containers, container)
 
 			job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, corev1.Volume{
 				Name: "artifacts",
 				VolumeSource: corev1.VolumeSource{
 					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 						ClaimName: pvc.Name,
-						ReadOnly:  true,
+						ReadOnly:  false,
 					},
 				},
 			})
@@ -321,23 +362,18 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 
 		} else if job.Spec.Completions == nil || *job.Spec.Completions == 1 {
 			if job.Status.Succeeded > 0 {
-				succeeded++
+				artifact.Status.Phase = osbuilder.Ready
+				if err := TryToUpdateStatus(ctx, r.Client, artifact); err != nil {
+					log.FromContext(ctx).Error(err, "failed to update artifact status")
+					return ctrl.Result{}, err
+				}
 			}
 		} else if *job.Spec.BackoffLimit <= job.Status.Failed {
 			artifact.Status.Phase = osbuilder.Error
-			if err := r.Status().Update(ctx, artifact); err != nil {
+			if err := TryToUpdateStatus(ctx, r.Client, artifact); err != nil {
 				log.FromContext(ctx).Error(err, "failed to update artifact status")
-				return ctrl.Result{Requeue: true}, nil
+				return ctrl.Result{}, err
 			}
-			break
-		}
-	}
-
-	if succeeded == len(artifact.Spec.Exporters) {
-		artifact.Status.Phase = osbuilder.Ready
-		if err := r.Status().Update(ctx, artifact); err != nil {
-			log.FromContext(ctx).Error(err, "failed to update artifact status")
-			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
