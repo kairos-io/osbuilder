@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-registry
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: registry
+  name: osbuilder-registry
+  namespace: test-registry
+spec:
+  ports:
+    - nodePort: 30100
+      port: 5000
+      protocol: TCP
+      targetPort: 5000
+  selector:
+    app: registry
+  type: NodePort
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-pvc
+  namespace: test-registry
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 30Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: registry
+  name: registry
+  namespace: test-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registry
+  template:
+    metadata:
+      labels:
+        app: registry
+    spec:
+      containers:
+        - image: registry:2
+          imagePullPolicy: IfNotPresent
+          name: registry
+          volumeMounts:
+            - mountPath: /var/lib/registry
+              name: registry-vol
+      volumes:
+        - name: registry-vol
+          persistentVolumeClaim:
+            claimName: registry-pvc

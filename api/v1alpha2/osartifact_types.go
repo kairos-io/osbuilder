@@ -17,8 +17,6 @@ limitations under the License.
 package v1alpha2
 
 import (
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -36,44 +34,32 @@ type OSArtifactSpec struct {
 	// Points to a prepared kairos image (e.g. a released one)
 	ImageName string `json:"imageName,omitempty"`
 
-	// Points to a vanilla (non-Kairos) image. osbuilder will try to convert this to a Kairos image
-	BaseImageName string `json:"baseImageName,omitempty"`
-
-	// Points to a Secret that contains a Dockerfile. osbuilder will build the image using that Dockerfile and will try to create a Kairos image from it.
-	BaseImageDockerfile *SecretKeySelector `json:"baseImageDockerfile,omitempty"`
-
 	ISO bool `json:"iso,omitempty"`
 
 	// +kubebuilder:validation:Type:=string
 	// +kubebuilder:validation:Enum:=rpi3;rpi4
 	Model *Model `json:"model,omitempty"`
 
-	//Disk-only stuff
-	DiskSize   string `json:"diskSize,omitempty"`
-	CloudImage bool   `json:"cloudImage,omitempty"`
-	AzureImage bool   `json:"azureImage,omitempty"`
-	GCEImage   bool   `json:"gceImage,omitempty"`
-
-	Netboot    bool   `json:"netboot,omitempty"`
-	NetbootURL string `json:"netbootURL,omitempty"`
-
 	CloudConfigRef *SecretKeySelector `json:"cloudConfigRef,omitempty"`
-	GRUBConfig     string             `json:"grubConfig,omitempty"`
 
-	Bundles       []string          `json:"bundles,omitempty"`
-	FileBundles   map[string]string `json:"fileBundles,omitempty"`
-	OSRelease     string            `json:"osRelease,omitempty"`
-	KairosRelease string            `json:"kairosRelease,omitempty"`
+	Bundles     []string          `json:"bundles,omitempty"`
+	FileBundles map[string]string `json:"fileBundles,omitempty"`
 
-	ImagePullSecrets []corev1.LocalObjectReference     `json:"imagePullSecrets,omitempty"`
-	Exporters        []batchv1.JobSpec                 `json:"exporters,omitempty"`
-	Volume           *corev1.PersistentVolumeClaimSpec `json:"volume,omitempty"`
+	OutputImage *OutputImage `json:"outputImage,omitempty"`
 }
 
 type SecretKeySelector struct {
 	Name string `json:"name"`
 	// +optional
 	Key string `json:"key,omitempty"`
+}
+
+type OutputImage struct {
+	Registry             string             `json:"registry,omitempty"`
+	Repository           string             `json:"repository,omitempty"`
+	Tag                  string             `json:"tag,omitempty"`
+	Username             string             `json:"username,omitempty"`
+	PasswordSecretKeyRef *SecretKeySelector `json:"passwordSecretKeyRef,omitempty"`
 }
 
 type ArtifactPhase string

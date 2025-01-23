@@ -1,7 +1,23 @@
 kind: Secret
 apiVersion: v1
 metadata:
+  name: registry-config
+  namespace: osbuilder
+stringData:
+  config.json: |
+    {
+    "auths": {
+    "osbuilder.plrl-dev-aws.onplural.sh": {
+      "auth": "CHANGE_ME"
+        }
+      }
+    }
+---
+kind: Secret
+apiVersion: v1
+metadata:
   name: cloud-config
+  namespace: osbuilder
 stringData:
   userdata: |
     #cloud-config
@@ -39,13 +55,14 @@ stringData:
         local_file: true    
 
     plural:
-      token: abc
+      token: CHANGE_ME
       url: https://console.plrl-dev-aws.onplural.sh
 ---
 kind: OSArtifact
 apiVersion: build.kairos.io/v1alpha2
 metadata:
   name: kairos-plural
+  namespace: osbuilder
 spec:
   imageName: "quay.io/kairos/alpine:3.19-standard-arm64-rpi4-v3.2.4-k3sv1.31.3-k3s1"
   iso: true
@@ -57,22 +74,12 @@ spec:
   cloudConfigRef:
     name: cloud-config
     key: userdata
-  exporters:
-    - template:
-        spec:
-          restartPolicy: Never
-          containers:
-            - name: upload
-              image: quay.io/curl/curl
-              command:
-                - /bin/sh
-              args:
-                - -c
-                - |
-                  for f in $(ls /artifacts)
-                  do
-                  curl -T /artifacts/$f http://osartifactbuilder-operator-osbuilder-nginx/upload/$f
-                  done
-              volumeMounts:
-                - name: artifacts
-                  mountPath: /artifacts
+  outputImage:
+    registry: osbuilder.plrl-dev-aws.onplural.sh
+    repository: kairos
+    tag: latest
+    username: plural
+    passwordSecretKeyRef:
+      name: registry-config
+      key: config.json
+
