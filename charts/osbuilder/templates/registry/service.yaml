@@ -15,7 +15,9 @@ spec:
       port: 5000
       protocol: TCP
       targetPort: registry
+    {{- if .Values.registry.debug }}
     - name: debug
       port: 5001
       protocol: TCP
       targetPort: debug
+    {{- end }}
