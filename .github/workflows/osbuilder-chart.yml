@@ -1,6 +1,7 @@
 name: Publish OS Builder Chart
 
 on:
+  workflow_dispatch: 
   push:
     paths:
       - charts/osbuilder
