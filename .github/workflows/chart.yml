@@ -2,6 +2,8 @@ name: Publish Chart
 
 on:
   push:
+    paths:
+      - charts/osbuilder
     branches:
       - master
 
@@ -19,6 +21,10 @@ jobs:
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Add repos
+        run: |
+          helm repo add cert-manager https://charts.jetstack.io
 
       - name: Run chart-releaser
         id: release
