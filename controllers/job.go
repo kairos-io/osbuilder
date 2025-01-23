@@ -105,19 +105,12 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		},
 	}
 
-	cloudImgCmd := fmt.Sprintf(
-		"/raw-images.sh /rootfs /artifacts/%s.raw",
-		artifact.Name,
-	)
-
 	if artifact.Spec.CloudConfigRef != nil {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      "cloudconfig",
 			MountPath: "/iso/iso-overlay/cloud_config.yaml",
 			SubPath:   artifact.Spec.CloudConfigRef.Key,
 		})
-
-		cloudImgCmd += " /iso/iso-overlay/cloud_config.yaml"
 	}
 
 	if artifact.Spec.Model != nil {
