@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "helm-chart.fullname" . }}-registry
+  namespace: {{.Release.Namespace}}
+  labels:
+    app.kubernetes.io/component: registry
+    {{- include "helm-chart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.registry.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: registry
+      {{- include "helm-chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- range keys .Values.registry.podAnnotations }}
+        {{ . | quote }}: {{ get $.Values.registry.podAnnotations . | quote }}
+        {{- end }}
+      labels:
+        app.kubernetes.io/component: registry
+        {{- include "helm-chart.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: registry
+          image: {{ .Values.registry.image.repository }}:{{ .Values.registry.image.tag }}
+          env:
+            - name: REGISTRY_STORAGE
+              value: {{ .Values.registry.storage.driver }}
+            {{- if eq .Values.registry.storage.driver "s3" }}
+            - name: REGISTRY_STORAGE_S3_BUCKET
+              value: {{ .Values.registry.storage.s3.bucket }}
+            - name: REGISTRY_STORAGE_S3_ACCESSKEY
+              value: {{ .Values.registry.storage.s3.accessKey }}
+            - name: REGISTRY_STORAGE_S3_SECRETKEY
+              value: {{ .Values.registry.storage.s3.secretKey }}
+            - name: REGISTRY_STORAGE_S3_REGIONENDPOINT
+              value: {{ .Values.registry.storage.s3.endpoint }}
+            - name: REGISTRY_STORAGE_S3_REGION
+              value: {{ .Values.registry.storage.s3.region }}
+            - name: REGISTRY_STORAGE_S3_SECURE
+              value: 'true'
+            {{- end }}
+            {{- if .Values.registry.debug }}
+            - name: REGISTRY_LOG_LEVEL
+              value: debug
+            {{- end }}
+            {{- if and (eq .Values.registry.auth.realm "basic-realm") (or .Values.registry.auth.htpasswd.existingSecret.name .Values.registry.auth.htpasswd.secret.name) }}
+            - name: REGISTRY_AUTH_HTPASSWD_REALM
+              value: {{ .Values.registry.auth.realm }}
+            - name: REGISTRY_AUTH_HTPASSWD_PATH
+              value: /etc/htpasswd/htpasswd
+            {{- end }}
+            {{- range $envKey, $envValue := .Values.registry.extraEnvVars }}
+            - name: {{ $envKey }}
+              value: {{ $envValue }}
+            {{- end }}
+          ports:
+            - name: registry
+              containerPort: 5000
+              protocol: TCP
+            {{- if .Values.registry.debug }}
+            - name: debug
+              containerPort: 5001
+              protocol: TCP
+            {{- end }}
+          volumeMounts:
+            - name: tls-volume
+              mountPath: /etc/tls
+              readOnly: true
+          {{- if and (eq .Values.registry.auth.realm "basic-realm") (or .Values.registry.auth.htpasswd.existingSecret.name .Values.registry.auth.htpasswd.secret.name) }}
+            - name: htpasswd-volume
+              mountPath: /etc/htpasswd
+              readOnly: true
+          {{- end }}
+      volumes:
+        {{- if and (eq .Values.registry.auth.realm "basic-realm") (or .Values.registry.auth.htpasswd.existingSecret.name .Values.registry.auth.htpasswd.secret.name) }}
+        - name: htpasswd-volume
+          secret:
+            secretName: {{ .Values.registry.auth.htpasswd.existingSecret.name | default (printf "%s-%s" (include "helm-chart.fullname" .) "htpasswd") }}
+        {{- end }}

@@ -1,0 +1,34 @@
+{{- if .Values.registry.ingress.enabled }}
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "helm-chart.fullname" . }}-registry
+  labels:
+    app.kubernetes.io/component: registry
+    {{- include "helm-chart.labels" . | nindent 4 }}
+  {{- with .Values.registry.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.registry.ingress.ingressClass }}
+  {{ if .Values.registry.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.registry.ingress.dns | quote }}
+      secretName: {{ include "helm-chart.fullname" . }}-registry-tls
+  {{ end }}
+  rules:
+    - host: {{ .Values.registry.ingress.dns | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "helm-chart.fullname" . }}-registry
+                port:
+                  name: registry
+
+{{- end }}

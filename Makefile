@@ -287,3 +287,18 @@ kubesplit: manifests kustomize
 	rm -rf helm-chart
 	mkdir helm-chart
 	$(KUSTOMIZE) build config/default | kubesplit -helm helm-chart
+
+helm:
+	helm upgrade \
+		--install \
+		--create-namespace \
+		--namespace test-registry \
+		--set registry.storage.s3.accessKey=${AWS_ACCESSKEY} \
+		--set registry.storage.s3.secretKey=${AWS_SECRETKEY} \
+		--set registry.storage.s3.region=${AWS_BUCKET_REGION} \
+		--set registry.storage.s3.bucket=${AWS_BUCKET_NAME} \
+		--set registry.storage.s3.endpoint=${AWS_BUCKET_ENDPOINT} \
+		--set registry.auth.htpasswd.secret.name=registry-default-user-password \
+		--set registry.ingress.dns=osbuilder.plrl-dev-aws.onplural.sh \
+		--set builder.replicas=0 \
+		osbuilder ./charts/osbuilder

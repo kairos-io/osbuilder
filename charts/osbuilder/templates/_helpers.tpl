@@ -50,7 +50,6 @@ app.kubernetes.io/name: {{ include "helm-chart.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{/*
 Create the name of the service account to use
 */}}
 {{- define "helm-chart.serviceAccountName" -}}

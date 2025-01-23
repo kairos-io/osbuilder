@@ -1,5 +1,8 @@
 apiVersion: v2
 name: osartifact
 description: A Helm chart for OSArtifact CRD deployment
+maintainers:
+  - name: Plural
+    email: support@plural.sh
 type: application
 version: 0.3.0

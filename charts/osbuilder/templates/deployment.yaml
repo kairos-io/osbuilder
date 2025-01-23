@@ -1,133 +1,69 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: '{{ include "helm-chart.fullname" . }}'
-    namespace: '{{.Release.Namespace}}'
-    labels:
-      {{- include "helm-chart.labels" . | nindent 8 }}
+  name: '{{ include "helm-chart.fullname" . }}'
+  namespace: '{{.Release.Namespace}}'
+  labels:
+    {{- include "helm-chart.labels" . | nindent 4 }}
 spec:
-    replicas: {{ .Values.replicas | default 1}}
-    selector:
-        matchLabels:
-            {{- include "helm-chart.selectorLabels" . | nindent 10 }}
-    template:
-        metadata:
-            annotations:
-                {{- range keys .Values.podAnnotations }}
-                {{ . | quote }}: {{ get $.Values.podAnnotations . | quote}}
-                {{- end }}
-            labels:
-                {{- include "helm-chart.selectorLabels" . | nindent 14}}
-        spec:
-            {{- with .Values.imagePullSecrets }}
-            imagePullSecrets:
-            {{- toYaml . | nindent 14 }}
-            {{- end }}
-            containers:
-              - args:
-                  - --secure-listen-address=0.0.0.0:8443
-                  - --upstream=http://127.0.0.1:8080/
-                  - --logtostderr=true
-                  - --v=0
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.11.0
-                name: kube-rbac-proxy
-                ports:
-                  - containerPort: 8443
-                    name: https
-                    protocol: TCP
-                resources:
-                    limits:
-                        cpu: 500m
-                        memory: 128Mi
-                    requests:
-                        cpu: 5m
-                        memory: 64Mi
-                securityContext:
-                    allowPrivilegeEscalation: false
-              - args:
-                  - --pvc-storage-size={{ .Values.pvcStorageSize }}
-                  - --health-probe-bind-address=:8081
-                  - --metrics-bind-address=127.0.0.1:8080
-                  - --leader-elect
-                  - '--tool-image={{ .Values.toolsImage.repository | default "quay.io/kairos/auroraboot" }}:{{ .Values.toolsImage.tag | default "latest" }}'
-                command:
-                  - /manager
-                image: '{{ .Values.image.repository | default "ghcr.io/pluralsh/osbuilder" }}:{{ .Values.image.tag | default .Chart.AppVersion }}'
-                livenessProbe:
-                    httpGet:
-                        path: /healthz
-                        port: 8081
-                    initialDelaySeconds: 15
-                    periodSeconds: 20
-                name: manager
-                readinessProbe:
-                    httpGet:
-                        path: /readyz
-                        port: 8081
-                    initialDelaySeconds: 5
-                    periodSeconds: 10
-                {{- if and .Values.resources .Values.resources.controller }}
-                resources:
-{{ toYaml .Values.resources.controller | indent 20 }}
-                {{- end }}
-                securityContext:
-                    allowPrivilegeEscalation: false
-            securityContext:
-                runAsNonRoot: true
-            serviceAccountName: '{{ include "helm-chart.serviceAccountName" . }}'
-            terminationGracePeriodSeconds: 10
-            {{- with .Values.nodeSelector }}
-            nodeSelector:
-            {{- toYaml . | nindent 14 }}
-            {{- end }}
-            {{- with .Values.affinity }}
-            affinity:
-            {{- toYaml . | nindent 14 }}
-            {{- end }}
-            {{- with .Values.tolerations }}
-            tolerations:
-            {{- toYaml . | nindent 14 }}
-            {{- end }}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-    labels:
-        app.kubernetes.io/name: osbuilder-nginx
-    name: 'osbuilder-nginx'
-    namespace: '{{.Release.Namespace}}'
-spec:
-    replicas: 1
-    selector:
-        matchLabels:
-            app.kubernetes.io/name: osbuilder-nginx
-    template:
-        metadata:
-            labels:
-                app.kubernetes.io/name: osbuilder-nginx
-        spec:
-            containers:
-              - image: nginx
-                name: nginx
-                ports:
-                  - containerPort: 80
-                volumeMounts:
-                  - mountPath: /usr/share/nginx/html
-                    name: nginx-public
-                  - mountPath: /etc/nginx/conf.d
-                    name: config
-                    readOnly: true
-            serviceAccountName: '{{ include "helm-chart.serviceAccountName" . }}'
-            terminationGracePeriodSeconds: 10
-            securityContext:
-              fsGroup: 101
-            volumes:
-              - name: nginx-public
-                persistentVolumeClaim:
-                    claimName: osartifactbuilder-operator-nginx-public
-              - name: config
-                configMap:
-                  name: nginx-config
-                  items:
-                    - key: nginx.conf
-                      path: default.conf
+  replicas: {{ .Values.builder.replicas }}
+  selector:
+    matchLabels:
+      {{- include "helm-chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- range keys .Values.builder.podAnnotations }}
+        {{ . | quote }}: {{ get $.Values.builder.podAnnotations . | quote}}
+        {{- end }}
+      labels:
+        {{- include "helm-chart.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.builder.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 14 }}
+      {{- end }}
+      containers:
+        - name: manager
+          image: '{{ .Values.builder.image.repository | default "ghcr.io/pluralsh/osbuilder" }}:{{ .Values.builder.image.tag | default .Chart.AppVersion }}'
+          command: [ '/manager' ]
+          args:
+            - --pvc-storage-size={{ .Values.builder.pvcStorageSize }}
+            - --health-probe-bind-address=:8081
+            - --metrics-bind-address=127.0.0.1:8080
+            - --leader-elect
+            - '--tool-image={{ .Values.builder.toolsImage.repository | default "quay.io/kairos/auroraboot" }}:{{ .Values.builder.toolsImage.tag | default "latest" }}'
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          {{- if and .Values.builder.resources .Values.builder.resources.controller }}
+          resources:
+            {{- toYaml .Values.builder.resources.controller | nindent 12 }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: '{{ include "helm-chart.serviceAccountName" . }}'
+      terminationGracePeriodSeconds: 10
+      {{- with .Values.builder.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 14 }}
+      {{- end }}
+      {{- with .Values.builder.affinity }}
+      affinity:
+        {{- toYaml . | nindent 14 }}
+      {{- end }}
+      {{- with .Values.builder.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 14 }}
+      {{- end }}

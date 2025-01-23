@@ -6,7 +6,7 @@ template:
         restartPolicy: Never
         containers:
         -   name: upload
-            image: {{ .Values.image.toolsRepository | default "quay.io/kairos/osbuilder-tools" }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+            image: {{ .Values.builder.toolsRepository | default "quay.io/kairos/osbuilder-tools" }}:{{ .Values.builder.image.tag | default .Chart.AppVersion }}
             command:
                 - bash
             args:

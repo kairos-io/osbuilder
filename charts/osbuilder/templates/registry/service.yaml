@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helm-chart.fullname" . }}-registry
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/component: registry
+    {{- include "helm-chart.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/component: registry
+    {{- include "helm-chart.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: registry
+      port: 5000
+      protocol: TCP
+      targetPort: registry
+    - name: debug
+      port: 5001
+      protocol: TCP
+      targetPort: debug

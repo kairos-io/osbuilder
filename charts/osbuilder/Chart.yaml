@@ -1,11 +1,16 @@
 apiVersion: v2
 name: osbuilder
 description: A Helm chart for osbuilder
+maintainers:
+  - name: Plural
+    email: support@plural.sh
+home: https://github.com/pluralsh/osbuilder
+type: application
 appVersion: 0.1.5
 version: 0.1.5
-dependencies: []
-maintainers:
-  - name: Ettore Di Giacinto
-    email: mudler@kairos.io
-home: https://kairos.io/
-type: application
+dependencies:
+  - name: cert-manager
+    alias: certManager
+    repository: https://charts.jetstack.io
+    version: v1.16.3
+    condition: certManager.enabled
