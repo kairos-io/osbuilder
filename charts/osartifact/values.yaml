@@ -25,11 +25,11 @@ tokenSecret:
 
 # A list of our required bundles that should be added to the result ISO image.
 defaultBundles:
-  plural-bundle: ghcr.io/pluralsh/kairos-plural-bundle:0.1.4
+  plural-bundle: ghcr.io/pluralsh/kairos-plural-bundle:0.1.6
 
 # A list of our optional bundles that should be added to the result ISO image.
 bundles:
-  plural-images-bundle: ghcr.io/pluralsh/kairos-plural-images-bundle:0.1.1
+  plural-images-bundle: ghcr.io/pluralsh/kairos-plural-images-bundle:0.1.2
   plural-trust-manager-bundle: ghcr.io/pluralsh/kairos-plural-trust-manager-bundle:0.1.0
 
 # A list of extra bundles that should be added to the result ISO image.
