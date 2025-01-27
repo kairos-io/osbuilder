@@ -51,6 +51,7 @@ const (
 	artifactExporterIndexAnnotation = "build.kairos.io/export-index"
 	ready                           = "Ready"
 )
+const threeHours = int32(10800)
 
 var (
 	requeue = ctrl.Result{RequeueAfter: requeueAfter}
@@ -351,7 +352,7 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 					},
 				},
 			})
-
+			job.Spec.TTLSecondsAfterFinished = ptr(threeHours)
 			if err := controllerutil.SetOwnerReference(artifact, job, r.Scheme); err != nil {
 				log.FromContext(ctx).Error(err, "failed to set owner reference on job")
 				return ctrl.Result{Requeue: true}, nil
