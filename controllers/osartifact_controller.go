@@ -119,12 +119,7 @@ func (r *OSArtifactReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		})
 		return ctrl.Result{}, TryToUpdateStatus(ctx, r.Client, artifact)
 	case osbuilder.Error:
-		meta.SetStatusCondition(&artifact.Status.Conditions, metav1.Condition{
-			Type:   "Ready",
-			Status: metav1.ConditionFalse,
-			Reason: "Error",
-		})
-		return ctrl.Result{}, TryToUpdateStatus(ctx, r.Client, artifact)
+		return ctrl.Result{}, nil
 	default:
 		return r.checkBuild(ctx, artifact)
 	}
@@ -210,6 +205,12 @@ func (r *OSArtifactReconciler) checkBuild(ctx context.Context, artifact *osbuild
 			return ctrl.Result{}, TryToUpdateStatus(ctx, r.Client, artifact)
 		case corev1.PodFailed:
 			artifact.Status.Phase = osbuilder.Error
+			meta.SetStatusCondition(&artifact.Status.Conditions, metav1.Condition{
+				Type:    "Ready",
+				Status:  metav1.ConditionFalse,
+				Reason:  "Error",
+				Message: getCorev1PodHealth(&pod).Message,
+			})
 			return ctrl.Result{}, TryToUpdateStatus(ctx, r.Client, artifact)
 		case corev1.PodPending, corev1.PodRunning:
 			return ctrl.Result{}, nil
@@ -275,6 +276,7 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 					},
 				},
 				Spec: batchv1.JobSpec{
+					BackoffLimit: ptr(int32(1)),
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
 							RestartPolicy: corev1.RestartPolicyOnFailure,
@@ -360,24 +362,35 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 				return ctrl.Result{Requeue: true}, nil
 			}
 
-		} else if job.Spec.Completions == nil || *job.Spec.Completions == 1 {
+		} else if job.Spec.Completions != nil {
 			if job.Status.Succeeded > 0 {
 				artifact.Status.Phase = osbuilder.Ready
 				if err := TryToUpdateStatus(ctx, r.Client, artifact); err != nil {
 					log.FromContext(ctx).Error(err, "failed to update artifact status")
 					return ctrl.Result{}, err
 				}
-			}
-		} else if *job.Spec.BackoffLimit <= job.Status.Failed {
-			artifact.Status.Phase = osbuilder.Error
-			if err := TryToUpdateStatus(ctx, r.Client, artifact); err != nil {
-				log.FromContext(ctx).Error(err, "failed to update artifact status")
-				return ctrl.Result{}, err
+				return ctrl.Result{}, nil
+			} else if job.Status.Failed > 0 {
+				artifact.Status.Phase = osbuilder.Error
+				h := getBatchv1JobHealth(job)
+				if h.Status == HealthStatusDegraded {
+					meta.SetStatusCondition(&artifact.Status.Conditions, metav1.Condition{
+						Type:    "Ready",
+						Status:  metav1.ConditionFalse,
+						Reason:  "Error",
+						Message: h.Message,
+					})
+					if err := TryToUpdateStatus(ctx, r.Client, artifact); err != nil {
+						log.FromContext(ctx).Error(err, "failed to update artifact status")
+						return ctrl.Result{}, err
+					}
+					return ctrl.Result{}, nil
+				}
 			}
 		}
 	}
 
-	return ctrl.Result{}, nil
+	return requeue, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
