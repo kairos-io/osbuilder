@@ -1,16 +1,16 @@
 apiVersion: v2
 name: osbuilder
 description: A Helm chart for osbuilder
+appVersion: 0.1.8
+version: 0.1.10
+dependencies:
+  - name: cert-manager
+    version: v1.16.3
+    alias: certManager
+    repository: https://charts.jetstack.io
+    condition: certManager.enabled
 maintainers:
   - name: Plural
     email: support@plural.sh
 home: https://github.com/pluralsh/osbuilder
 type: application
-appVersion: 0.1.7
-version: 0.1.9
-dependencies:
-  - name: cert-manager
-    alias: certManager
-    repository: https://charts.jetstack.io
-    version: v1.16.3
-    condition: certManager.enabled
