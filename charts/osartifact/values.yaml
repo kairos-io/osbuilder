@@ -67,6 +67,8 @@ exporter:
   repository: plural-edge
   # Image tag that should be used when pushing to the registry
   tag: latest
+  # Username used when generating docker config.json. It is only used when 'passwordSecret' is provided.
+  username: plural
   # Secret that stores just the password for the docker registry user.
   # One of 'passwordSecret' or 'configSecret' must be provided.
   passwordSecret:
