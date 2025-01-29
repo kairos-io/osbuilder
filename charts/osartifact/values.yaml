@@ -59,14 +59,14 @@ extraCloudConfig: ~
 
 # Export configuration for the final ISO images
 exporter:
+  # Whether container registry is an ECR instance or other. One of: "ecr", "other"
+  cloud: other
   # Docker registry DNS name where we should export packed ISO images
   registry: ~
   # Name of the repository where images should be stored
   repository: plural-edge
   # Image tag that should be used when pushing to the registry
   tag: latest
-  # Repository username used for basic auth
-  username: ~
   # Secret that stores just the password for the docker registry user.
   # One of 'passwordSecret' or 'configSecret' must be provided.
   passwordSecret:

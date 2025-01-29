@@ -23,10 +23,12 @@ spec:
     name: {{ include "osartifact.fullname" . }}-config
     key: cloud-config.yaml
   outputImage:
+    cloud: {{ .Values.exporter.cloud }}
     registry: {{ .Values.exporter.registry }}
     repository: {{ .Values.exporter.repository }}
     tag: {{ .Values.exporter.tag }}
-    username: {{ .Values.exporter.username }}
+    {{- if (eq .Values.exporter.cloud "other") }}
     passwordSecretKeyRef:
       name: {{ .Values.exporter.configSecret.name | default (printf "%s-%s" (include "osartifact.fullname" .) "config") }}
       key: {{ .Values.exporter.configSecret.key }}
+    {{- end }}
