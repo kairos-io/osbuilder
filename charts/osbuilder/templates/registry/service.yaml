@@ -1,3 +1,5 @@
+{{- if .Values.registry.enabled }}
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -21,3 +23,5 @@ spec:
       protocol: TCP
       targetPort: debug
     {{- end }}
+
+{{- end }}

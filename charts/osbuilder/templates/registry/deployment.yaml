@@ -1,3 +1,5 @@
+{{- if .Values.registry.enabled }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -77,3 +79,4 @@ spec:
           secret:
             secretName: {{ .Values.registry.auth.htpasswd.existingSecret.name | default (printf "%s-%s" (include "helm-chart.fullname" .) "htpasswd") }}
         {{- end }}
+{{- end }}

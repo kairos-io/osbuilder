@@ -19,10 +19,11 @@ package controllers
 import (
 	"fmt"
 
-	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 )
 
 func unpackContainer(id, containerImage, pullImage string) corev1.Container {

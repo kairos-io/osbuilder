@@ -54,12 +54,31 @@ type SecretKeySelector struct {
 	Key string `json:"key,omitempty"`
 }
 
+type RegistryCloud string
+
+const (
+	// RegistryCloudECR ensures that special env variables will be injected
+	// into the exporter job to allow kaniko to automatically auth with the
+	// ecr registry to push the images.
+	RegistryCloudECR RegistryCloud = "ecr"
+	// RegistryCloudOther requires from user to provide username/password secret
+	// in order for kaniko to be able to authenticate with the container registry.
+	RegistryCloudOther RegistryCloud = "other"
+)
+
 type OutputImage struct {
-	Registry             string             `json:"registry,omitempty"`
-	Repository           string             `json:"repository,omitempty"`
-	Tag                  string             `json:"tag,omitempty"`
-	Username             string             `json:"username,omitempty"`
-	PasswordSecretKeyRef *SecretKeySelector `json:"passwordSecretKeyRef,omitempty"`
+	// +kubebuilder:validation:Enum=ecr;other
+	// +kubebuilder:default=other
+	// +required
+	Cloud RegistryCloud `json:"cloud"`
+	// +optional
+	Registry string `json:"registry,omitempty"`
+	// +optional
+	Repository string `json:"repository,omitempty"`
+	// +optional
+	Tag string `json:"tag,omitempty"`
+	// +optional
+	DockerConfigSecretKeyRef *SecretKeySelector `json:"dockerConfigSecretKeyRef,omitempty"`
 }
 
 type ArtifactPhase string

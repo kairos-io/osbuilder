@@ -41,6 +41,7 @@ builder:
         memory: 50Mi
 
 registry:
+  enabled: false
   # Secrets to pull container images from private registries
   imagePullSecrets: []
   image:

@@ -319,10 +319,18 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 					},
 				},
 			}
-			if artifact.Spec.OutputImage != nil && artifact.Spec.OutputImage.PasswordSecretKeyRef != nil {
-				if err := r.Get(ctx, client.ObjectKey{Namespace: artifact.Namespace, Name: artifact.Spec.OutputImage.PasswordSecretKeyRef.Name}, &corev1.Secret{}); err != nil {
+
+			if artifact.Spec.OutputImage != nil && artifact.Spec.OutputImage.Cloud == osbuilder.RegistryCloudECR {
+				container.Env = []corev1.EnvVar{
+					{Name: "AWS_SDK_LOAD_CONFIG", Value: "true"},
+					{Name: "AWS_EC2_METADATA_DISABLED", Value: "true"},
+				}
+			}
+
+			if artifact.Spec.OutputImage != nil && artifact.Spec.OutputImage.DockerConfigSecretKeyRef != nil {
+				if err := r.Get(ctx, client.ObjectKey{Namespace: artifact.Namespace, Name: artifact.Spec.OutputImage.DockerConfigSecretKeyRef.Name}, &corev1.Secret{}); err != nil {
 					if errors.IsNotFound(err) {
-						logger.Info(fmt.Sprintf("Secret %s/%s not found", artifact.Namespace, artifact.Spec.OutputImage.PasswordSecretKeyRef.Name))
+						logger.Info(fmt.Sprintf("Secret %s/%s not found", artifact.Namespace, artifact.Spec.OutputImage.DockerConfigSecretKeyRef.Name))
 						return requeue, nil
 					}
 					return ctrl.Result{}, err
@@ -335,7 +343,11 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 					Name: "docker-secret",
 					VolumeSource: corev1.VolumeSource{
 						Secret: &corev1.SecretVolumeSource{
-							SecretName: artifact.Spec.OutputImage.PasswordSecretKeyRef.Name,
+							SecretName: artifact.Spec.OutputImage.DockerConfigSecretKeyRef.Name,
+							Items: []corev1.KeyToPath{{
+								Key:  artifact.Spec.OutputImage.DockerConfigSecretKeyRef.Key,
+								Path: artifact.Spec.OutputImage.DockerConfigSecretKeyRef.Key,
+							}},
 						},
 					},
 				})
