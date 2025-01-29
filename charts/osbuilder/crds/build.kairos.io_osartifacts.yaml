@@ -72,7 +72,13 @@ spec:
                 type: string
               outputImage:
                 properties:
-                  passwordSecretKeyRef:
+                  cloud:
+                    default: other
+                    enum:
+                    - ecr
+                    - other
+                    type: string
+                  dockerConfigSecretKeyRef:
                     properties:
                       key:
                         type: string
@@ -87,8 +93,8 @@ spec:
                     type: string
                   tag:
                     type: string
-                  username:
-                    type: string
+                required:
+                - cloud
                 type: object
             type: object
           status:
