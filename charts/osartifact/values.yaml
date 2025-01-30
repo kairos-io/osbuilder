@@ -1,5 +1,5 @@
 # Kubernetes node name
-nodeName: plural-edge
+nodeName: pluralos
 
 # Base image used for building customized plural ISO
 image: quay.io/kairos/alpine:3.19-standard-arm64-rpi4-v3.2.4-k3sv1.31.3-k3s1
@@ -74,7 +74,7 @@ exporter:
 
     image:
       # Name of the repository where images should be stored
-      repository: plural-edge
+      repository: pluralos
       # Image tag that should be used when pushing to the registry
       tag: latest
 
