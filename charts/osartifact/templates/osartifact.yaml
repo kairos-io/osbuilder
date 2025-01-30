@@ -22,13 +22,19 @@ spec:
   cloudConfigRef:
     name: {{ include "osartifact.fullname" . }}-config
     key: cloud-config.yaml
-  outputImage:
-    cloud: {{ .Values.exporter.cloud }}
-    registry: {{ .Values.exporter.registry }}
-    repository: {{ .Values.exporter.repository }}
-    tag: {{ .Values.exporter.tag }}
-    {{- if (eq .Values.exporter.cloud "other") }}
-    passwordSecretKeyRef:
-      name: {{ .Values.exporter.configSecret.name | default (printf "%s-%s" (include "osartifact.fullname" .) "config") }}
-      key: {{ .Values.exporter.configSecret.key }}
+  exporter:
+    serviceAccount: {{ include "osartifact.fullname" . }}
+    {{- with .Values.exporter.extraEnvVars }}
+    extraEnvVars: {{ . | toYaml | nindent 4 }}
     {{- end }}
+    registry:
+      name: {{ .Values.exporter.registry.name }}
+      type: {{ .Values.exporter.registry.type }}
+      image:
+        repository: {{ .Values.exporter.registry.image.repository }}
+        tag: {{ .Values.exporter.registry.image.tag }}
+      {{- if (eq .Values.exporter.registry.type "other") }}
+      passwordSecretKeyRef:
+        name: {{ .Values.exporter.registry.configSecret.name | default (printf "%s-%s" (include "osartifact.fullname" .) "config") }}
+        key: {{ .Values.exporter.registry.configSecret.key }}
+      {{- end }}

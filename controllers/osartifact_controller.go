@@ -51,7 +51,7 @@ const (
 	artifactExporterIndexAnnotation = "build.kairos.io/export-index"
 	ready                           = "Ready"
 )
-const threeHours = int32(10800)
+const threeHours = int32(3 * 60 * 60)
 
 var (
 	requeue = ctrl.Result{RequeueAfter: requeueAfter}
@@ -260,7 +260,7 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 		return ctrl.Result{}, fmt.Errorf("failed to locate artifact pvc")
 	}
 
-	if artifact.Spec.OutputImage != nil {
+	if artifact.Spec.Exporter != nil {
 		idx := fmt.Sprintf("%d", 1)
 
 		job := indexedJobs[idx]
@@ -280,7 +280,8 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 					BackoffLimit: ptr(int32(1)),
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
-							RestartPolicy: corev1.RestartPolicyOnFailure,
+							ServiceAccountName: artifact.Spec.Exporter.ServiceAccountName(),
+							RestartPolicy:      corev1.RestartPolicyNever,
 							InitContainers: []corev1.Container{
 								{
 									Name:  "init-container",
@@ -303,13 +304,18 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 				},
 			}
 
+			tag := artifact.Spec.Exporter.Registry.Image.Tag
+			if len(tag) == 0 {
+				tag = "latest"
+			}
+
 			container := corev1.Container{
 				Name:  "exporter",
 				Image: "gcr.io/kaniko-project/executor:latest",
 				Args: []string{
 					"--context=/artifacts/",
 					"--dockerfile=/artifacts/Dockerfile",
-					fmt.Sprintf("--destination=%s/%s:%s", artifact.Spec.OutputImage.Registry, artifact.Spec.OutputImage.Repository, artifact.Spec.OutputImage.Tag),
+					fmt.Sprintf("--destination=%s/%s:%s", artifact.Spec.Exporter.Registry.Name, artifact.Spec.Exporter.Registry.Image.Repository, tag),
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{
@@ -318,19 +324,30 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 						SubPath:   "artifacts",
 					},
 				},
+				Env: []corev1.EnvVar{},
 			}
 
-			if artifact.Spec.OutputImage != nil && artifact.Spec.OutputImage.Cloud == osbuilder.RegistryCloudECR {
-				container.Env = []corev1.EnvVar{
+			// Append EKS specific env vars if using ECR registry
+			if artifact.Spec.Exporter.IsECRRegistry() {
+				container.Env = append(container.Env, []corev1.EnvVar{
 					{Name: "AWS_SDK_LOAD_CONFIG", Value: "true"},
 					{Name: "AWS_EC2_METADATA_DISABLED", Value: "true"},
-				}
+				}...)
 			}
 
-			if artifact.Spec.OutputImage != nil && artifact.Spec.OutputImage.DockerConfigSecretKeyRef != nil {
-				if err := r.Get(ctx, client.ObjectKey{Namespace: artifact.Namespace, Name: artifact.Spec.OutputImage.DockerConfigSecretKeyRef.Name}, &corev1.Secret{}); err != nil {
+			// Append extra env vars
+			if artifact.Spec.Exporter.HasExtraEnvVars() {
+				container.Env = append(container.Env, *artifact.Spec.Exporter.ExtraEnvVars...)
+			}
+
+			// Mount custom config.json file from secret
+			if artifact.Spec.Exporter.HasDockerConfigSecret() {
+				name := artifact.Spec.Exporter.Registry.DockerConfigSecretKeyRef.Name
+				key := artifact.Spec.Exporter.Registry.DockerConfigSecretKeyRef.Key
+
+				if err := r.Get(ctx, client.ObjectKey{Namespace: artifact.Namespace, Name: name}, &corev1.Secret{}); err != nil {
 					if errors.IsNotFound(err) {
-						logger.Info(fmt.Sprintf("Secret %s/%s not found", artifact.Namespace, artifact.Spec.OutputImage.DockerConfigSecretKeyRef.Name))
+						logger.Info(fmt.Sprintf("Secret %s/%s not found", artifact.Namespace, name))
 						return requeue, nil
 					}
 					return ctrl.Result{}, err
@@ -343,10 +360,10 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 					Name: "docker-secret",
 					VolumeSource: corev1.VolumeSource{
 						Secret: &corev1.SecretVolumeSource{
-							SecretName: artifact.Spec.OutputImage.DockerConfigSecretKeyRef.Name,
+							SecretName: name,
 							Items: []corev1.KeyToPath{{
-								Key:  artifact.Spec.OutputImage.DockerConfigSecretKeyRef.Key,
-								Path: artifact.Spec.OutputImage.DockerConfigSecretKeyRef.Key,
+								Key:  key,
+								Path: "config.json",
 							}},
 						},
 					},
