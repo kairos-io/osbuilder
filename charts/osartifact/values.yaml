@@ -61,11 +61,15 @@ extraCloudConfig: ~
 exporter:
   serviceAccount:
     annotations: ~
-  # Defines extra env vars that will be added to the exporter pob
+  # Defines extra env vars that will be added to the exporter pod
   # extraEnvVars:
   # - name: MY_ENV_VAR
   #   value: myvalue
   extraEnvVars: []
+  # Image used for exporter pods
+  image: ~
+  # Allows appending args to the exporter image
+  extraArgs: []
   registry:
     # Container registry DNS name where we should export packed ISO images
     name: ~

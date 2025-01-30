@@ -1,8 +1,8 @@
 apiVersion: v2
 name: osbuilder
 description: A Helm chart for osbuilder
-appVersion: 0.3.0
-version: 0.1.14
+appVersion: 0.4.0
+version: 0.1.15
 dependencies:
   - name: cert-manager
     version: v1.16.3

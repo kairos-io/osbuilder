@@ -75,6 +75,11 @@ spec:
                   Exporter when provided it will spawn an exporter job that
                   pushes images built by the osbuilder to the provided registry.
                 properties:
+                  extraArgs:
+                    description: ExtraArgs allows appending args to the exporter image.
+                    items:
+                      type: string
+                    type: array
                   extraEnvVars:
                     description: ExtraEnvVars allows to append extra env vars to the
                       exporter pods.
@@ -196,6 +201,9 @@ spec:
                       - name
                       type: object
                     type: array
+                  image:
+                    description: Image is the image used for exporter pods
+                    type: string
                   registry:
                     description: Registry is a registry spec used to push the final
                       images built by the osbuilder.

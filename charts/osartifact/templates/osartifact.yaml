@@ -27,6 +27,13 @@ spec:
     {{- with .Values.exporter.extraEnvVars }}
     extraEnvVars: {{ . | toYaml | nindent 4 }}
     {{- end }}
+    {{- if .Values.exporter.image }}
+    image: {{ .Values.exporter.image }}
+    {{- end }}
+    {{ with .Values.exporter.extraArgs }}
+    extraArgs:
+      {{- . | toYaml | nindent 6 }}
+    {{- end }}
     registry:
       name: {{ .Values.exporter.registry.name }}
       type: {{ .Values.exporter.registry.type }}

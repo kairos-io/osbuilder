@@ -80,6 +80,14 @@ type ExporterSpec struct {
 	// ExtraEnvVars allows to append extra env vars to the exporter pods.
 	// +optional
 	ExtraEnvVars *[]corev1.EnvVar `json:"extraEnvVars,omitempty"`
+
+	// Image is the image used for exporter pods
+	// +optional
+	Image string `json:"image,omitempty"`
+
+	// ExtraArgs allows appending args to the exporter image.
+	// +optional
+	ExtraArgs []string `json:"extraArgs,omitempty"`
 }
 
 func (in *ExporterSpec) IsECRRegistry() bool {

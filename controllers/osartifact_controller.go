@@ -309,14 +309,19 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 				tag = "latest"
 			}
 
+			image := artifact.Spec.Exporter.Image
+			if len(image) == 0 {
+				image = "gcr.io/kaniko-project/executor:latest"
+			}
+
 			container := corev1.Container{
 				Name:  "exporter",
-				Image: "gcr.io/kaniko-project/executor:latest",
-				Args: []string{
+				Image: image,
+				Args: append([]string{
 					"--context=/artifacts/",
 					"--dockerfile=/artifacts/Dockerfile",
 					fmt.Sprintf("--destination=%s/%s:%s", artifact.Spec.Exporter.Registry.Name, artifact.Spec.Exporter.Registry.Image.Repository, tag),
-				},
+				}, artifact.Spec.Exporter.ExtraArgs...),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      "artifacts",
