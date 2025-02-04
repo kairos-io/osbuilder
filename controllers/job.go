@@ -104,6 +104,11 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 			MountPath: "/rootfs",
 			SubPath:   "rootfs",
 		},
+		{
+			Name:      "defaults",
+			MountPath: "/defaults.yaml",
+			SubPath:   "defaults.yaml",
+		},
 	}
 
 	if artifact.Spec.CloudConfigRef != nil {
@@ -147,7 +152,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 				},
 			},
 			{
-				Name: "config",
+				Name: "defaults",
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
 						LocalObjectReference: corev1.LocalObjectReference{

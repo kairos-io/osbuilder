@@ -7,8 +7,8 @@ stringData:
   config.json: |
     {
     "auths": {
-    "osbuilder.plrl-dev-aws.onplural.sh": {
-      "auth": "CHANGE_ME"
+    "https://index.docker.io/v1/": {
+      "auth": "CHANGE ME"
         }
       }
     }
@@ -24,8 +24,8 @@ stringData:
     hostname: plural-edge-{{ trunc 10 .MachineID }}
     
     users:
-      - name: "kairos"
-        passwd: kairos
+      - name: "test"
+        passwd: test
         groups: [ "admin" ]
     
     write_files:
@@ -74,12 +74,13 @@ spec:
   cloudConfigRef:
     name: cloud-config
     key: userdata
-  outputImage:
-    registry: osbuilder.plrl-dev-aws.onplural.sh
-    repository: kairos
-    tag: latest
-    username: plural
-    passwordSecretKeyRef:
-      name: registry-config
-      key: config.json
+  exporter:
+    registry:
+      name: index.docker.io
+      image:
+        repository: test/kairos
+        tag: latest
+      dockerConfigSecretKeyRef:
+        name: registry-config
+        key: config.json
 

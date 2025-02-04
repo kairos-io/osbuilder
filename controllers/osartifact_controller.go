@@ -161,6 +161,12 @@ func (r *OSArtifactReconciler) createBuilderPod(ctx context.Context, artifact *o
 
 func (r *OSArtifactReconciler) startBuild(ctx context.Context, artifact *osbuilder.OSArtifact) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+
+	err := r.CreateConfigMap(ctx, artifact)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if artifact.Spec.CloudConfigRef != nil {
 		if err := r.Get(ctx, client.ObjectKey{Namespace: artifact.Namespace, Name: artifact.Spec.CloudConfigRef.Name}, &corev1.Secret{}); err != nil {
 			if errors.IsNotFound(err) {
@@ -460,6 +466,23 @@ func (r *OSArtifactReconciler) findOwningArtifact(_ context.Context, obj client.
 				},
 			},
 		}
+	}
+
+	return nil
+}
+
+// CreateConfigMap generates a configmap required for building a custom image
+func (r *OSArtifactReconciler) CreateConfigMap(ctx context.Context, artifact *osbuilder.OSArtifact) error {
+	cm := r.genConfigMap(artifact)
+	if cm.Labels == nil {
+		cm.Labels = map[string]string{}
+	}
+	cm.Labels[artifactLabel] = artifact.Name
+	if err := controllerutil.SetOwnerReference(artifact, cm, r.Scheme); err != nil {
+		return err
+	}
+	if err := r.Create(ctx, cm); err != nil && !apierrors.IsAlreadyExists(err) {
+		return err
 	}
 
 	return nil
