@@ -20,6 +20,8 @@ import (
 	"flag"
 	"os"
 
+	consoleclient "github.com/kairos-io/osbuilder/pkg/client"
+	"github.com/kairos-io/osbuilder/pkg/helpers"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -43,6 +45,8 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+const EnvConsoleToken = "CONSOLE_TOKEN"
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
@@ -55,6 +59,10 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var serveImage, toolImage, copierImage, pvcStorage string
+	var consoleUrl, consoleToken string
+
+	flag.StringVar(&consoleUrl, "console-url", "", "The URL of the console api to fetch services from.")
+	flag.StringVar(&consoleToken, "console-token", helpers.GetEnv(EnvConsoleToken, ""), "The deploy token to auth to Console API with.")
 
 	flag.StringVar(&pvcStorage, "pvc-storage-size", "20Gi", "The PVC storage size for building process")
 
@@ -74,6 +82,8 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	extConsoleClient := consoleclient.New(consoleUrl, consoleToken)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -99,12 +109,13 @@ func main() {
 	}
 
 	if err = (&controllers.OSArtifactReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		ServingImage: serveImage,
-		ToolImage:    toolImage,
-		CopierImage:  copierImage,
-		PVCStorage:   pvcStorage,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		ServingImage:  serveImage,
+		ToolImage:     toolImage,
+		CopierImage:   copierImage,
+		PVCStorage:    pvcStorage,
+		ConsoleClient: extConsoleClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OSArtifact")
 		os.Exit(1)

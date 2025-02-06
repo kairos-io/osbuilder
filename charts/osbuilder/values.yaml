@@ -16,6 +16,9 @@ builder:
     tag: ~
 
   replicas: 1
+  consoleUrl: ""
+  consoleToken: ""
+
 
   # The PVC storage size for the build process
   pvcStorageSize: "30Gi"

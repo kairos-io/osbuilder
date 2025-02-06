@@ -21,13 +21,14 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-
+	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
+	consoleclient "github.com/kairos-io/osbuilder/pkg/client"
+	console "github.com/pluralsh/console/go/client"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,8 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 )
 
 const (
@@ -60,6 +59,7 @@ var (
 // OSArtifactReconciler reconciles a OSArtifact object
 type OSArtifactReconciler struct {
 	client.Client
+	ConsoleClient                                    consoleclient.Client
 	Scheme                                           *runtime.Scheme
 	ServingImage, ToolImage, CopierImage, PVCStorage string
 }
@@ -404,8 +404,18 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 			}
 
 		} else if job.Spec.Completions != nil {
-			if job.Status.Succeeded > 0 {
+			if job.Status.Succeeded > 0 && artifact.Status.Phase == osbuilder.Exporting {
 				artifact.Status.Phase = osbuilder.Ready
+				if err := r.upsertClusterIsoImage(artifact); err != nil {
+					artifact.Status.Phase = osbuilder.Error
+					meta.SetStatusCondition(&artifact.Status.Conditions, metav1.Condition{
+						Type:    "Ready",
+						Status:  metav1.ConditionFalse,
+						Reason:  "Error",
+						Message: consoleclient.GetErrorResponse(err, "CreateClusterIsoImage").Error(),
+					})
+				}
+
 				if err := TryToUpdateStatus(ctx, r.Client, artifact); err != nil {
 					log.FromContext(ctx).Error(err, "failed to update artifact status")
 					return ctrl.Result{}, err
@@ -432,6 +442,27 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 	}
 
 	return requeue, nil
+}
+
+func (r *OSArtifactReconciler) upsertClusterIsoImage(artifact *osbuilder.OSArtifact) error {
+	image := fmt.Sprintf("%s:%s", artifact.Spec.Exporter.Registry.Image.Repository, artifact.Spec.Exporter.Registry.Image.Tag)
+	attr := console.ClusterIsoImageAttributes{
+		Image:    image,
+		Registry: artifact.Spec.Exporter.Registry.Name,
+	}
+
+	getResponse, err := r.ConsoleClient.GetClusterIsoImage(&image)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			_, err := r.ConsoleClient.CreateClusterIsoImage(attr)
+			return err
+		}
+		return err
+	}
+	if _, err := r.ConsoleClient.UpdateClusterIsoImage(getResponse.ID, attr); err != nil {
+		return err
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -28,6 +28,8 @@ spec:
           image: '{{ .Values.builder.image.repository | default "ghcr.io/pluralsh/osbuilder" }}:{{ .Values.builder.image.tag | default .Chart.AppVersion }}'
           command: [ '/manager' ]
           args:
+            - --console-url={{ .Values.builder.consoleUrl }}
+            - --console-token={{ .Values.builder.consoleToken }}
             - --pvc-storage-size={{ .Values.builder.pvcStorageSize }}
             - --health-probe-bind-address=:8081
             - --metrics-bind-address=127.0.0.1:8080

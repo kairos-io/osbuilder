@@ -3,19 +3,16 @@ on:
   push:
     branches:
       - master
-  pull_request:
-    paths:
-      - '**'
 
-concurrency:
-  group: lint-${{ github.ref || github.head_ref }}
-  cancel-in-progress: true
-
-env:
-  FORCE_COLOR: 1
 jobs:
-  call-workflow:
-    uses: kairos-io/linting-composite-action/.github/workflows/reusable-linting.yaml@v0.0.10
-    with:
-      yamldirs: ".github/workflows/ config/"
-      is-go: true
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+
