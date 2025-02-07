@@ -1,8 +1,8 @@
 package v1alpha2
 
 type CloudConfig struct {
-	Users  Users  `json:"users,omitempty"`
-	Plural Plural `json:"plural,omitempty"`
+	Users  Users  `json:"users,omitempty" yaml:"users,omitempty"`
+	Plural Plural `json:"plural,omitempty" yaml:"plural,omitempty"`
 }
 
 type Users []User
@@ -16,8 +16,8 @@ func (in Users) FirstUser() *User {
 }
 
 type User struct {
-	Name   string `json:"name"`
-	Passwd string `json:"passwd"`
+	Name   string `json:"name" yaml:"name"`
+	Passwd string `json:"passwd" yaml:"passwd"`
 }
 
 func (in *User) GetName() *string {
@@ -37,6 +37,6 @@ func (in *User) GetPasswd() *string {
 }
 
 type Plural struct {
-	Token string `json:"token"`
-	URL   string `json:"url"`
+	Token string `json:"token" yaml:"token"`
+	URL   string `json:"url" yaml:"url"`
 }

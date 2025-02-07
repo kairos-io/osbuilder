@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -40,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/yaml"
 
 	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	consoleclient "github.com/kairos-io/osbuilder/pkg/client"
@@ -552,7 +552,7 @@ func (r *OSArtifactReconciler) getCloudConfig(ctx context.Context, artifact *osb
 		return config, fmt.Errorf("could not find key %s in secret %s", artifact.Spec.CloudConfigRef.Key, artifact.Spec.CloudConfigRef.Name)
 	}
 
-	if err := json.Unmarshal(configBytes, config); err != nil {
+	if err := yaml.Unmarshal(configBytes, config); err != nil {
 		return config, err
 	}
 
