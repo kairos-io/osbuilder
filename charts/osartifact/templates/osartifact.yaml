@@ -22,6 +22,9 @@ spec:
   cloudConfigRef:
     name: {{ include "osartifact.fullname" . }}-config
     key: cloud-config.yaml
+  {{- if .Values.project }}
+  project: {{ .Values.project }}
+  {{- end }}
   exporter:
     serviceAccount: {{ include "osartifact.fullname" . }}
     {{- with .Values.exporter.extraEnvVars }}

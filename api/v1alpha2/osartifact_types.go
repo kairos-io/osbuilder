@@ -30,19 +30,23 @@ const (
 
 // OSArtifactSpec defines the desired state of OSArtifact
 type OSArtifactSpec struct {
-	// There are 3 ways to specify a Kairos image:
-
 	// Points to a prepared kairos image (e.g. a released one)
+	// +optional
 	ImageName string `json:"imageName,omitempty"`
 
+	// +optional
 	ISO bool `json:"iso,omitempty"`
 
 	// +kubebuilder:validation:Type:=string
 	// +kubebuilder:validation:Enum:=rpi3;rpi4
+	// +optional
 	Model *Model `json:"model,omitempty"`
 
 	// +optional
 	CloudConfigRef *corev1.SecretKeySelector `json:"cloudConfigRef,omitempty"`
+
+	// +optional
+	Project string `json:"project,omitempty"`
 
 	// +optional
 	Bundles []string `json:"bundles,omitempty"`

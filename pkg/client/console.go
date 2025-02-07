@@ -6,12 +6,13 @@ import (
 	"net/http"
 
 	rawclient "github.com/Yamashou/gqlgenc/clientv2"
-	internalerror "github.com/kairos-io/osbuilder/pkg/errors"
-	"github.com/kairos-io/osbuilder/pkg/helpers"
 	"github.com/pkg/errors"
 	console "github.com/pluralsh/console/go/client"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	internalerror "github.com/kairos-io/osbuilder/pkg/errors"
+	"github.com/kairos-io/osbuilder/pkg/helpers"
 )
 
 type client struct {
@@ -37,6 +38,7 @@ type Client interface {
 	UpdateClusterIsoImage(id string, attributes console.ClusterIsoImageAttributes) (*console.ClusterIsoImageFragment, error)
 	GetClusterIsoImage(image *string) (*console.ClusterIsoImageFragment, error)
 	DeleteClusterIsoImage(id string) (*console.ClusterIsoImageFragment, error)
+	GetProject(name string) (*console.ProjectFragment, error)
 }
 
 func (c *client) CreateClusterIsoImage(attributes console.ClusterIsoImageAttributes) (*console.ClusterIsoImageFragment, error) {
@@ -80,6 +82,22 @@ func (c *client) GetClusterIsoImage(image *string) (*console.ClusterIsoImageFrag
 	}
 
 	return response.ClusterIsoImage, nil
+}
+
+func (c *client) GetProject(name string) (*console.ProjectFragment, error) {
+	response, err := c.consoleClient.GetProject(c.ctx, nil, &name)
+	if internalerror.IsNotFound(err) {
+		return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+	}
+	if err == nil && (response == nil || response.Project == nil) {
+		return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+	}
+
+	if response == nil {
+		return nil, err
+	}
+
+	return response.Project, nil
 }
 
 func GetErrorResponse(err error, methodName string) error {

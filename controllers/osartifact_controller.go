@@ -18,11 +18,10 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
-	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
-	consoleclient "github.com/kairos-io/osbuilder/pkg/client"
 	console "github.com/pluralsh/console/go/client"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +40,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
+	consoleclient "github.com/kairos-io/osbuilder/pkg/client"
 )
 
 const (
@@ -406,7 +408,7 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 		} else if job.Spec.Completions != nil {
 			if job.Status.Succeeded > 0 && artifact.Status.Phase == osbuilder.Exporting {
 				artifact.Status.Phase = osbuilder.Ready
-				if err := r.upsertClusterIsoImage(artifact); err != nil {
+				if err := r.upsertClusterIsoImage(ctx, artifact); err != nil {
 					artifact.Status.Phase = osbuilder.Error
 					meta.SetStatusCondition(&artifact.Status.Conditions, metav1.Condition{
 						Type:    "Ready",
@@ -444,11 +446,25 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 	return requeue, nil
 }
 
-func (r *OSArtifactReconciler) upsertClusterIsoImage(artifact *osbuilder.OSArtifact) error {
+func (r *OSArtifactReconciler) upsertClusterIsoImage(ctx context.Context, artifact *osbuilder.OSArtifact) error {
+	cloudConfig, err := r.getCloudConfig(ctx, artifact)
+	if err != nil {
+		return err
+	}
+
+	var projectID *string = nil
+	project, _ := r.ConsoleClient.GetProject(artifact.Spec.Project)
+	if project != nil {
+		projectID = &project.ID
+	}
+
 	image := fmt.Sprintf("%s:%s", artifact.Spec.Exporter.Registry.Image.Repository, artifact.Spec.Exporter.Registry.Image.Tag)
 	attr := console.ClusterIsoImageAttributes{
-		Image:    image,
-		Registry: artifact.Spec.Exporter.Registry.Name,
+		Image:     image,
+		Registry:  artifact.Spec.Exporter.Registry.Name,
+		User:      cloudConfig.Users.FirstUser().GetName(),
+		Password:  cloudConfig.Users.FirstUser().GetPasswd(),
+		ProjectID: projectID,
 	}
 
 	getResponse, err := r.ConsoleClient.GetClusterIsoImage(&image)
@@ -517,4 +533,28 @@ func (r *OSArtifactReconciler) CreateConfigMap(ctx context.Context, artifact *os
 	}
 
 	return nil
+}
+
+func (r *OSArtifactReconciler) getCloudConfig(ctx context.Context, artifact *osbuilder.OSArtifact) (*osbuilder.CloudConfig, error) {
+	config := &osbuilder.CloudConfig{}
+	secret := &corev1.Secret{}
+	key := client.ObjectKey{
+		Namespace: artifact.Namespace,
+		Name:      artifact.Spec.CloudConfigRef.Name,
+	}
+
+	if err := r.Get(ctx, key, secret); err != nil {
+		return config, err
+	}
+
+	configBytes, exists := secret.Data[artifact.Spec.CloudConfigRef.Key]
+	if !exists {
+		return config, fmt.Errorf("could not find key %s in secret %s", artifact.Spec.CloudConfigRef.Key, artifact.Spec.CloudConfigRef.Name)
+	}
+
+	if err := json.Unmarshal(configBytes, config); err != nil {
+		return config, err
+	}
+
+	return config, nil
 }
