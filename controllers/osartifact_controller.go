@@ -407,22 +407,24 @@ func (r *OSArtifactReconciler) checkExport(ctx context.Context, artifact *osbuil
 
 		} else if job.Spec.Completions != nil {
 			if job.Status.Succeeded > 0 && artifact.Status.Phase == osbuilder.Exporting {
+				var apiErr error
 				artifact.Status.Phase = osbuilder.Ready
 				if err := r.upsertClusterIsoImage(ctx, artifact); err != nil {
-					artifact.Status.Phase = osbuilder.Error
+					artifact.Status.Phase = osbuilder.Exporting
 					meta.SetStatusCondition(&artifact.Status.Conditions, metav1.Condition{
 						Type:    "Ready",
 						Status:  metav1.ConditionFalse,
 						Reason:  "Error",
 						Message: consoleclient.GetErrorResponse(err, "CreateClusterIsoImage").Error(),
 					})
+					apiErr = err
 				}
 
 				if err := TryToUpdateStatus(ctx, r.Client, artifact); err != nil {
 					log.FromContext(ctx).Error(err, "failed to update artifact status")
 					return ctrl.Result{}, err
 				}
-				return ctrl.Result{}, nil
+				return ctrl.Result{}, apiErr
 			} else if job.Status.Failed > 0 {
 				artifact.Status.Phase = osbuilder.Error
 				h := getBatchv1JobHealth(job)
