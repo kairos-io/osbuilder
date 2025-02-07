@@ -8,7 +8,7 @@
     {{- fail "Could not find secret provided via .Values.builder.consoleTokenSecret.name" }}
   {{- end }}
 
-  {{ $token := index $tokenSecret.data .Values.builder.consoleTokenSecret.key | b64dec }}
+  {{ $token = index $tokenSecret.data .Values.builder.consoleTokenSecret.key | b64dec }}
 
   {{- if not $token }}
     {{- fail "Could not find token key value in the provided secret" }}
