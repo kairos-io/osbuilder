@@ -1,3 +1,21 @@
+{{ $token := .Values.builder.consoleToken }}
+
+{{- if not $token }}
+
+  {{ $tokenSecret := lookup "v1" "Secret" .Release.Namespace .Values.builder.consoleTokenSecret.name }}
+
+  {{- if not $tokenSecret.data }}
+    {{- fail "Could not find secret provided via .Values.builder.consoleTokenSecret.name" }}
+  {{- end }}
+
+  {{ $token := index $tokenSecret.data .Values.builder.consoleTokenSecret.key | b64dec }}
+
+  {{- if not $token }}
+    {{- fail "Could not find token key value in the provided secret" }}
+  {{- end }}
+
+{{- end }}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -29,7 +47,7 @@ spec:
           command: [ '/manager' ]
           args:
             - --console-url={{ .Values.builder.consoleUrl }}
-            - --console-token={{ .Values.builder.consoleToken }}
+            - --console-token={{ $token }}
             - --pvc-storage-size={{ .Values.builder.pvcStorageSize }}
             - --health-probe-bind-address=:8081
             - --metrics-bind-address=127.0.0.1:8080
