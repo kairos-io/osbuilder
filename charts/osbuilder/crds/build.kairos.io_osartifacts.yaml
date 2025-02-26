@@ -290,6 +290,7 @@ spec:
                 enum:
                 - rpi3
                 - rpi4
+                - rpi5
                 type: string
               project:
                 type: string

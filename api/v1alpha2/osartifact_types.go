@@ -26,6 +26,7 @@ type Model string
 const (
 	RPI3 Model = "rpi3"
 	RPI4 Model = "rpi4"
+	RPI5 Model = "rpi5"
 )
 
 // OSArtifactSpec defines the desired state of OSArtifact
@@ -38,7 +39,7 @@ type OSArtifactSpec struct {
 	ISO bool `json:"iso,omitempty"`
 
 	// +kubebuilder:validation:Type:=string
-	// +kubebuilder:validation:Enum:=rpi3;rpi4
+	// +kubebuilder:validation:Enum:=rpi3;rpi4;rpi5
 	// +optional
 	Model *Model `json:"model,omitempty"`
 
