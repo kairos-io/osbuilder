@@ -4,7 +4,7 @@ nodeName: pluralos
 # Base image used for building customized plural ISO
 image: quay.io/kairos/alpine:3.19-standard-arm64-rpi4-v3.2.4-k3sv1.31.3-k3s1
 
-# Target device. Currently supported values: rpi4
+# Target device. Currently supported values: rpi4 and rpi5
 device: rpi4
 
 # Plural project name this image should be tied to.

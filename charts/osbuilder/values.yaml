@@ -28,8 +28,8 @@ builder:
   pvcStorageSize: "30Gi"
 
   toolsImage:
-    repository: "quay.io/kairos/auroraboot"
-    tag: "latest"
+    repository: "ghcr.io/pluralsh/auroraboot"
+    tag: "v0.4.3"
 
   podAnnotations: {}
   nodeSelector: {}
