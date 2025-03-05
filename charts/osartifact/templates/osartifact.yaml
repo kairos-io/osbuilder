@@ -16,9 +16,8 @@ spec:
     {{- range $key, $value := .Values.bundles }}
     {{ $key }}: {{ $value }}
     {{- end }}
-    {{- range $key, $value := .Values.extraBundles }}
-    {{ $key }}: {{ $value }}
-    {{- end }}
+  bundles:
+    {{- .Values.extraBundles | toYaml | nindent 2 }}
   cloudConfigRef:
     name: {{ include "osartifact.fullname" . }}-config
     key: cloud-config.yaml
