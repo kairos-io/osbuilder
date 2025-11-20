@@ -46,7 +46,7 @@ var _ = Describe("ISO build test", func() {
 				GenerateName: "simple-",
 			},
 			Spec: osbuilder.OSArtifactSpec{
-				ImageName: "quay.io/kairos/core-opensuse:latest",
+				ImageName: "quay.io/kairos/opensuse:leap-15.6-core-amd64-generic-v3.6.0",
 				ISO:       true,
 				DiskSize:  "",
 				Exporters: []batchv1.JobSpec{

@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -57,7 +58,7 @@ func main() {
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 
 	// It needs luet inside
-	flag.StringVar(&toolImage, "tool-image", "quay.io/kairos/auroraboot:latest", "Tool image.")
+	flag.StringVar(&toolImage, "tool-image", fmt.Sprintf("quay.io/kairos/auroraboot:%s", controllers.CompatibleAurorabootVersion), "Tool image.")
 
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
