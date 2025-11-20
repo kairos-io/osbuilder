@@ -62,7 +62,7 @@ var _ = Describe("OSArtifactReconciler", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		r = &OSArtifactReconciler{
-			ToolImage: "quay.io/kairos/auroraboot:latest",
+			ToolImage: fmt.Sprintf("quay.io/kairos/auroraboot:%s", CompatibleAurorabootVersion),
 		}
 		err = (r).SetupWithManager(mgr)
 		Expect(err).ToNot(HaveOccurred())
