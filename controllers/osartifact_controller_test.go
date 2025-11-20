@@ -170,4 +170,247 @@ var _ = Describe("OSArtifactReconciler", func() {
 			})
 		})
 	})
+
+	Describe("Auroraboot Commands", func() {
+		BeforeEach(func() {
+			artifact.Spec.ImageName = "quay.io/kairos/opensuse:leap-15.6-core-amd64-generic-v3.6.0"
+		})
+
+		When("CloudImage is enabled", func() {
+			BeforeEach(func() {
+				artifact.Spec.CloudImage = true
+			})
+
+			It("creates build-cloud-image container with correct auroraboot command", func() {
+				pvc, err := r.createPVC(context.TODO(), artifact)
+				Expect(err).ToNot(HaveOccurred())
+
+				pod, err := r.createBuilderPod(context.TODO(), artifact, pvc)
+				Expect(err).ToNot(HaveOccurred())
+
+				var cloudImageContainer *corev1.Container
+				for i := range pod.Spec.Containers {
+					if pod.Spec.Containers[i].Name == "build-cloud-image" {
+						cloudImageContainer = &pod.Spec.Containers[i]
+						break
+					}
+				}
+				Expect(cloudImageContainer).ToNot(BeNil())
+				Expect(cloudImageContainer.Args).To(HaveLen(1))
+				Expect(cloudImageContainer.Args[0]).To(ContainSubstring("auroraboot --debug --set 'disk.raw=true'"))
+				Expect(cloudImageContainer.Args[0]).To(ContainSubstring("--set 'state_dir=/artifacts'"))
+				Expect(cloudImageContainer.Args[0]).To(ContainSubstring("dir:/rootfs"))
+				Expect(cloudImageContainer.Args[0]).To(ContainSubstring(fmt.Sprintf("mv /artifacts/*.raw /artifacts/%s.raw", artifact.Name)))
+			})
+
+			When("CloudConfigRef is set", func() {
+				BeforeEach(func() {
+					secretName := artifact.Name + "-cloudconfig"
+					_, err := clientset.CoreV1().Secrets(namespace).Create(context.TODO(),
+						&corev1.Secret{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      secretName,
+								Namespace: namespace,
+							},
+							StringData: map[string]string{
+								"cloud-config.yaml": "#cloud-config\nusers:\n  - name: test",
+							},
+							Type: "Opaque",
+						}, metav1.CreateOptions{})
+					Expect(err).ToNot(HaveOccurred())
+
+					artifact.Spec.CloudConfigRef = &osbuilder.SecretKeySelector{
+						Name: secretName,
+						Key:  "cloud-config.yaml",
+					}
+				})
+
+				It("includes cloud-config flag in auroraboot command", func() {
+					pvc, err := r.createPVC(context.TODO(), artifact)
+					Expect(err).ToNot(HaveOccurred())
+
+					pod, err := r.createBuilderPod(context.TODO(), artifact, pvc)
+					Expect(err).ToNot(HaveOccurred())
+
+					var cloudImageContainer *corev1.Container
+					for i := range pod.Spec.Containers {
+						if pod.Spec.Containers[i].Name == "build-cloud-image" {
+							cloudImageContainer = &pod.Spec.Containers[i]
+							break
+						}
+					}
+					Expect(cloudImageContainer).ToNot(BeNil())
+					Expect(cloudImageContainer.Args[0]).To(ContainSubstring("--cloud-config /cloud-config.yaml"))
+				})
+			})
+		})
+
+		When("Netboot is enabled", func() {
+			BeforeEach(func() {
+				artifact.Spec.Netboot = true
+				artifact.Spec.ISO = true
+				artifact.Spec.NetbootURL = "http://example.com"
+			})
+
+			It("creates build-netboot container with correct auroraboot netboot command", func() {
+				pvc, err := r.createPVC(context.TODO(), artifact)
+				Expect(err).ToNot(HaveOccurred())
+
+				pod, err := r.createBuilderPod(context.TODO(), artifact, pvc)
+				Expect(err).ToNot(HaveOccurred())
+
+				var netbootContainer *corev1.Container
+				for i := range pod.Spec.Containers {
+					if pod.Spec.Containers[i].Name == "build-netboot" {
+						netbootContainer = &pod.Spec.Containers[i]
+						break
+					}
+				}
+				Expect(netbootContainer).ToNot(BeNil())
+				Expect(netbootContainer.Args).To(HaveLen(1))
+				Expect(netbootContainer.Args[0]).To(ContainSubstring("auroraboot --debug netboot"))
+				Expect(netbootContainer.Args[0]).To(ContainSubstring(fmt.Sprintf("/artifacts/%s.iso", artifact.Name)))
+				Expect(netbootContainer.Args[0]).To(ContainSubstring("/artifacts"))
+				Expect(netbootContainer.Args[0]).To(ContainSubstring(artifact.Name))
+			})
+		})
+
+		When("AzureImage is enabled", func() {
+			BeforeEach(func() {
+				artifact.Spec.AzureImage = true
+			})
+
+			It("creates build-azure-cloud-image container with correct auroraboot command", func() {
+				pvc, err := r.createPVC(context.TODO(), artifact)
+				Expect(err).ToNot(HaveOccurred())
+
+				pod, err := r.createBuilderPod(context.TODO(), artifact, pvc)
+				Expect(err).ToNot(HaveOccurred())
+
+				var azureContainer *corev1.Container
+				for i := range pod.Spec.Containers {
+					if pod.Spec.Containers[i].Name == "build-azure-cloud-image" {
+						azureContainer = &pod.Spec.Containers[i]
+						break
+					}
+				}
+				Expect(azureContainer).ToNot(BeNil())
+				Expect(azureContainer.Args).To(HaveLen(1))
+				Expect(azureContainer.Args[0]).To(ContainSubstring("auroraboot --debug --set 'disk.vhd=true'"))
+				Expect(azureContainer.Args[0]).To(ContainSubstring("--set 'state_dir=/artifacts'"))
+				Expect(azureContainer.Args[0]).To(ContainSubstring("dir:/rootfs"))
+				Expect(azureContainer.Args[0]).To(ContainSubstring(fmt.Sprintf("mv /artifacts/*.vhd /artifacts/%s.vhd", artifact.Name)))
+			})
+
+			When("CloudConfigRef is set", func() {
+				BeforeEach(func() {
+					secretName := artifact.Name + "-cloudconfig"
+					_, err := clientset.CoreV1().Secrets(namespace).Create(context.TODO(),
+						&corev1.Secret{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      secretName,
+								Namespace: namespace,
+							},
+							StringData: map[string]string{
+								"cloud-config.yaml": "#cloud-config\nusers:\n  - name: test",
+							},
+							Type: "Opaque",
+						}, metav1.CreateOptions{})
+					Expect(err).ToNot(HaveOccurred())
+
+					artifact.Spec.CloudConfigRef = &osbuilder.SecretKeySelector{
+						Name: secretName,
+						Key:  "cloud-config.yaml",
+					}
+				})
+
+				It("includes cloud-config flag in auroraboot command", func() {
+					pvc, err := r.createPVC(context.TODO(), artifact)
+					Expect(err).ToNot(HaveOccurred())
+
+					pod, err := r.createBuilderPod(context.TODO(), artifact, pvc)
+					Expect(err).ToNot(HaveOccurred())
+
+					var azureContainer *corev1.Container
+					for i := range pod.Spec.Containers {
+						if pod.Spec.Containers[i].Name == "build-azure-cloud-image" {
+							azureContainer = &pod.Spec.Containers[i]
+							break
+						}
+					}
+					Expect(azureContainer).ToNot(BeNil())
+					Expect(azureContainer.Args[0]).To(ContainSubstring("--cloud-config /cloud-config.yaml"))
+				})
+			})
+		})
+
+		When("GCEImage is enabled", func() {
+			BeforeEach(func() {
+				artifact.Spec.GCEImage = true
+			})
+
+			It("creates build-gce-cloud-image container with correct auroraboot command", func() {
+				pvc, err := r.createPVC(context.TODO(), artifact)
+				Expect(err).ToNot(HaveOccurred())
+
+				pod, err := r.createBuilderPod(context.TODO(), artifact, pvc)
+				Expect(err).ToNot(HaveOccurred())
+
+				var gceContainer *corev1.Container
+				for i := range pod.Spec.Containers {
+					if pod.Spec.Containers[i].Name == "build-gce-cloud-image" {
+						gceContainer = &pod.Spec.Containers[i]
+						break
+					}
+				}
+				Expect(gceContainer).ToNot(BeNil())
+				Expect(gceContainer.Args).To(HaveLen(1))
+				Expect(gceContainer.Args[0]).To(ContainSubstring("auroraboot --debug --set 'disk.gce=true'"))
+				Expect(gceContainer.Args[0]).To(ContainSubstring("--set 'state_dir=/artifacts'"))
+				Expect(gceContainer.Args[0]).To(ContainSubstring("dir:/rootfs"))
+				Expect(gceContainer.Args[0]).To(ContainSubstring(fmt.Sprintf("mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz", artifact.Name)))
+			})
+
+			When("CloudConfigRef is set", func() {
+				BeforeEach(func() {
+					secretName := artifact.Name + "-cloudconfig"
+					_, err := clientset.CoreV1().Secrets(namespace).Create(context.TODO(),
+						&corev1.Secret{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      secretName,
+								Namespace: namespace,
+							},
+							StringData: map[string]string{
+								"cloud-config.yaml": "#cloud-config\nusers:\n  - name: test",
+							},
+							Type: "Opaque",
+						}, metav1.CreateOptions{})
+					Expect(err).ToNot(HaveOccurred())
+
+					artifact.Spec.CloudConfigRef = &osbuilder.SecretKeySelector{
+						Name: secretName,
+						Key:  "cloud-config.yaml",
+					}
+				})
+
+				It("includes cloud-config flag in auroraboot command", func() {
+					pvc, err := r.createPVC(context.TODO(), artifact)
+					Expect(err).ToNot(HaveOccurred())
+
+					pod, err := r.createBuilderPod(context.TODO(), artifact, pvc)
+					Expect(err).ToNot(HaveOccurred())
+
+					var gceContainer *corev1.Container
+					for i := range pod.Spec.Containers {
+						if pod.Spec.Containers[i].Name == "build-gce-cloud-image" {
+							gceContainer = &pod.Spec.Containers[i]
+							break
+						}
+					}
+					Expect(gceContainer).ToNot(BeNil())
+					Expect(gceContainer.Args[0]).To(ContainSubstring("--cloud-config /cloud-config.yaml"))
+				})
+			})
+		})
+	})
 })
