@@ -8,7 +8,6 @@ import (
 	osbuilder "github.com/kairos-io/osbuilder/api/v1alpha2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/phayes/freeport"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -20,6 +19,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("OSArtifactReconciler", func() {
@@ -51,20 +51,15 @@ var _ = Describe("OSArtifactReconciler", func() {
 		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 		utilruntime.Must(osbuilder.AddToScheme(scheme))
 
-		metricsPort, err := freeport.GetFreePort()
-		Expect(err).ToNot(HaveOccurred())
-
-		fmt.Printf("metricsPort = %+v\n", metricsPort)
-		mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-			Scheme:             scheme,
-			MetricsBindAddress: fmt.Sprintf("127.0.0.1:%d", metricsPort),
-		})
-		Expect(err).ToNot(HaveOccurred())
-
 		r = &OSArtifactReconciler{
 			ToolImage: fmt.Sprintf("quay.io/kairos/auroraboot:%s", CompatibleAurorabootVersion),
 		}
-		err = (r).SetupWithManager(mgr)
+
+		// Create a direct client (no cache) for tests - we don't need reconciliation
+		// This avoids the complexity of managing a running manager
+		directClient, err := client.New(restConfig, client.Options{Scheme: scheme})
+		Expect(err).ToNot(HaveOccurred())
+		err = r.InjectClient(directClient)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
