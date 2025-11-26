@@ -181,7 +181,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 	}
 
 	cloudImgCmd := fmt.Sprintf(
-		"auroraboot --debug --set 'disk.raw=true' --set 'state_dir=/artifacts' dir:/rootfs && mv /artifacts/*.raw /artifacts/%s.raw",
+		"test -d /rootfs && auroraboot --debug --set 'disk.raw=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' && mv /artifacts/*.raw /artifacts/%s.raw",
 		artifact.Name,
 	)
 
@@ -193,7 +193,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		})
 
 		cloudImgCmd = fmt.Sprintf(
-			"auroraboot --debug --set 'disk.raw=true' --set 'state_dir=/artifacts' --cloud-config /cloud-config.yaml dir:/rootfs && mv /artifacts/*.raw /artifacts/%s.raw",
+			"test -d /rootfs && auroraboot --debug --set 'disk.raw=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' --cloud-config /cloud-config.yaml && mv /artifacts/*.raw /artifacts/%s.raw",
 			artifact.Name,
 		)
 	}
@@ -258,12 +258,12 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 	}
 
 	azureCmd := fmt.Sprintf(
-		"auroraboot --debug --set 'disk.vhd=true' --set 'state_dir=/artifacts' dir:/rootfs && mv /artifacts/*.vhd /artifacts/%s.vhd",
+		"auroraboot --debug --set 'disk.vhd=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' && mv /artifacts/*.vhd /artifacts/%s.vhd",
 		artifact.Name,
 	)
 	if artifact.Spec.CloudConfigRef != nil {
 		azureCmd = fmt.Sprintf(
-			"auroraboot --debug --set 'disk.vhd=true' --set 'state_dir=/artifacts' --cloud-config /cloud-config.yaml dir:/rootfs && mv /artifacts/*.vhd /artifacts/%s.vhd",
+			"auroraboot --debug --set 'disk.vhd=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' --cloud-config /cloud-config.yaml && mv /artifacts/*.vhd /artifacts/%s.vhd",
 			artifact.Name,
 		)
 	}
@@ -280,12 +280,12 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 	}
 
 	gceCmd := fmt.Sprintf(
-		"auroraboot --debug --set 'disk.gce=true' --set 'state_dir=/artifacts' dir:/rootfs && mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz",
+		"auroraboot --debug --set 'disk.gce=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' && mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz",
 		artifact.Name,
 	)
 	if artifact.Spec.CloudConfigRef != nil {
 		gceCmd = fmt.Sprintf(
-			"auroraboot --debug --set 'disk.gce=true' --set 'state_dir=/artifacts' --cloud-config /cloud-config.yaml dir:/rootfs && mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz",
+			"auroraboot --debug --set 'disk.gce=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' --cloud-config /cloud-config.yaml && mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz",
 			artifact.Name,
 		)
 	}
