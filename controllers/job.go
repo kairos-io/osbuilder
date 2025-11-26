@@ -400,8 +400,11 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		podSpec.InitContainers = append(podSpec.InitContainers, kairosReleaseContainer(r.ToolImage))
 	}
 
+	// build-iso runs as an init container to ensure it completes before build-netboot
+	// (which extracts artifacts from the ISO). Init containers run sequentially and must
+	// succeed before regular containers start.
 	if artifact.Spec.ISO || artifact.Spec.Netboot {
-		podSpec.Containers = append(podSpec.Containers, buildIsoContainer)
+		podSpec.InitContainers = append(podSpec.InitContainers, buildIsoContainer)
 	}
 
 	if artifact.Spec.Netboot {
