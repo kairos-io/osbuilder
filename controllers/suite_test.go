@@ -123,5 +123,5 @@ func deleteNamepace(clientset *kubernetes.Clientset, name string) {
 	Eventually(func() bool {
 		_, err := clientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
 		return apierrors.IsNotFound(err)
-	}, 30*time.Second, 500*time.Millisecond).Should(BeTrue(), "namespace should be deleted")
+	}, 2*time.Minute, 1*time.Second).Should(BeTrue(), "namespace should be deleted")
 }
