@@ -180,10 +180,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		})
 	}
 
-	cloudImgCmd := fmt.Sprintf(
-		"test -d /rootfs && auroraboot --debug --set 'disk.raw=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' && mv /artifacts/*.raw /artifacts/%s.raw",
-		artifact.Name,
-	)
+	cloudImgCmd := "auroraboot --debug --set 'disk.raw=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs'"
 
 	if artifact.Spec.CloudConfigRef != nil {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
@@ -191,12 +188,10 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 			MountPath: "/cloud-config.yaml",
 			SubPath:   artifact.Spec.CloudConfigRef.Key,
 		})
-
-		cloudImgCmd = fmt.Sprintf(
-			"test -d /rootfs && auroraboot --debug --set 'disk.raw=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' --cloud-config /cloud-config.yaml && mv /artifacts/*.raw /artifacts/%s.raw",
-			artifact.Name,
-		)
+		cloudImgCmd += " --cloud-config /cloud-config.yaml"
 	}
+
+	cloudImgCmd += fmt.Sprintf(" && mv /artifacts/*.raw /artifacts/%s.raw", artifact.Name)
 
 	if artifact.Spec.CloudConfigRef != nil || artifact.Spec.GRUBConfig != "" {
 		cmd = fmt.Sprintf(
@@ -257,16 +252,13 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		VolumeMounts: volumeMounts,
 	}
 
-	azureCmd := fmt.Sprintf(
-		"auroraboot --debug --set 'disk.vhd=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' && mv /artifacts/*.vhd /artifacts/%s.vhd",
-		artifact.Name,
-	)
+	azureCmd := "auroraboot --debug --set 'disk.vhd=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs'"
+
 	if artifact.Spec.CloudConfigRef != nil {
-		azureCmd = fmt.Sprintf(
-			"auroraboot --debug --set 'disk.vhd=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' --cloud-config /cloud-config.yaml && mv /artifacts/*.vhd /artifacts/%s.vhd",
-			artifact.Name,
-		)
+		azureCmd += " --cloud-config /cloud-config.yaml"
 	}
+
+	azureCmd += fmt.Sprintf(" && mv /artifacts/*.vhd /artifacts/%s.vhd", artifact.Name)
 	buildAzureCloudImageContainer := corev1.Container{
 		ImagePullPolicy: corev1.PullAlways,
 		SecurityContext: &corev1.SecurityContext{Privileged: ptr(true)},
@@ -279,16 +271,13 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		VolumeMounts: volumeMounts,
 	}
 
-	gceCmd := fmt.Sprintf(
-		"auroraboot --debug --set 'disk.gce=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' && mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz",
-		artifact.Name,
-	)
+	gceCmd := "auroraboot --debug --set 'disk.gce=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs'"
+
 	if artifact.Spec.CloudConfigRef != nil {
-		gceCmd = fmt.Sprintf(
-			"auroraboot --debug --set 'disk.gce=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs' --cloud-config /cloud-config.yaml && mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz",
-			artifact.Name,
-		)
+		gceCmd += " --cloud-config /cloud-config.yaml"
 	}
+
+	gceCmd += fmt.Sprintf(" && mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz", artifact.Name)
 	buildGCECloudImageContainer := corev1.Container{
 		ImagePullPolicy: corev1.PullAlways,
 		SecurityContext: &corev1.SecurityContext{Privileged: ptr(true)},
