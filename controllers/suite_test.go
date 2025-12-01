@@ -101,6 +101,17 @@ func createRandomNamespace(clientset *kubernetes.Clientset) string {
 	}, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
 
+	// Create default service account to avoid pod creation errors
+	_, err = clientset.CoreV1().ServiceAccounts(name).Create(context.Background(), &v1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: name,
+		},
+	}, metav1.CreateOptions{})
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		Expect(err).ToNot(HaveOccurred())
+	}
+
 	return name
 }
 
