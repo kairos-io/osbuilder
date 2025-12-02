@@ -311,7 +311,6 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 
 	podSpec := corev1.PodSpec{
 		AutomountServiceAccountToken: ptr(false),
-		ServiceAccountName:           "",
 		RestartPolicy:                corev1.RestartPolicyNever,
 		Volumes: []corev1.Volume{
 			{
