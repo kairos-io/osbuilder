@@ -259,13 +259,19 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		VolumeMounts: volumeMounts,
 	}
 
-	azureCmd := "auroraboot --debug --set 'disk.vhd=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs'"
+	var azureCmd strings.Builder
+	azureCmd.WriteString("auroraboot --debug")
+	azureCmd.WriteString(" --set 'disk.vhd=true'")
+	azureCmd.WriteString(" --set 'disable_netboot=true'")
+	azureCmd.WriteString(" --set 'disable_http_server=true'")
+	azureCmd.WriteString(" --set 'state_dir=/artifacts'")
+	azureCmd.WriteString(" --set 'container_image=dir:/rootfs'")
 
 	if artifact.Spec.CloudConfigRef != nil {
-		azureCmd += " --cloud-config /cloud-config.yaml"
+		azureCmd.WriteString(" --cloud-config /cloud-config.yaml")
 	}
 
-	azureCmd += fmt.Sprintf(" && mv /artifacts/*.vhd /artifacts/%s.vhd", artifact.Name)
+	azureCmd.WriteString(fmt.Sprintf(" && mv /artifacts/*.vhd /artifacts/%s.vhd", artifact.Name))
 	buildAzureCloudImageContainer := corev1.Container{
 		ImagePullPolicy: corev1.PullAlways,
 		SecurityContext: &corev1.SecurityContext{Privileged: ptr(true)},
@@ -273,18 +279,24 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		Image:           r.ToolImage,
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
-			azureCmd,
+			azureCmd.String(),
 		},
 		VolumeMounts: volumeMounts,
 	}
 
-	gceCmd := "auroraboot --debug --set 'disk.gce=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs'"
+	var gceCmd strings.Builder
+	gceCmd.WriteString("auroraboot --debug")
+	gceCmd.WriteString(" --set 'disk.gce=true'")
+	gceCmd.WriteString(" --set 'disable_netboot=true'")
+	gceCmd.WriteString(" --set 'disable_http_server=true'")
+	gceCmd.WriteString(" --set 'state_dir=/artifacts'")
+	gceCmd.WriteString(" --set 'container_image=dir:/rootfs'")
 
 	if artifact.Spec.CloudConfigRef != nil {
-		gceCmd += " --cloud-config /cloud-config.yaml"
+		gceCmd.WriteString(" --cloud-config /cloud-config.yaml")
 	}
 
-	gceCmd += fmt.Sprintf(" && mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz", artifact.Name)
+	gceCmd.WriteString(fmt.Sprintf(" && mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz", artifact.Name))
 	buildGCECloudImageContainer := corev1.Container{
 		ImagePullPolicy: corev1.PullAlways,
 		SecurityContext: &corev1.SecurityContext{Privileged: ptr(true)},
@@ -292,7 +304,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		Image:           r.ToolImage,
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
-			gceCmd,
+			gceCmd.String(),
 		},
 		VolumeMounts: volumeMounts,
 	}
