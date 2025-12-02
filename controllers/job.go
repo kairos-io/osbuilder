@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -180,7 +181,13 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		})
 	}
 
-	cloudImgCmd := "auroraboot --debug --set 'disk.raw=true' --set 'disable_netboot=true' --set 'disable_http_server=true' --set 'state_dir=/artifacts' --set 'container_image=dir:/rootfs'"
+	var cloudImgCmd strings.Builder
+	cloudImgCmd.WriteString("auroraboot --debug")
+	cloudImgCmd.WriteString(" --set 'disk.raw=true'")
+	cloudImgCmd.WriteString(" --set 'disable_netboot=true'")
+	cloudImgCmd.WriteString(" --set 'disable_http_server=true'")
+	cloudImgCmd.WriteString(" --set 'state_dir=/artifacts'")
+	cloudImgCmd.WriteString(" --set 'container_image=dir:/rootfs'")
 
 	if artifact.Spec.CloudConfigRef != nil {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
@@ -188,10 +195,10 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 			MountPath: "/cloud-config.yaml",
 			SubPath:   artifact.Spec.CloudConfigRef.Key,
 		})
-		cloudImgCmd += " --cloud-config /cloud-config.yaml"
+		cloudImgCmd.WriteString(" --cloud-config /cloud-config.yaml")
 	}
 
-	cloudImgCmd += fmt.Sprintf(" && mv /artifacts/*.raw /artifacts/%s.raw", artifact.Name)
+	cloudImgCmd.WriteString(fmt.Sprintf(" && mv /artifacts/*.raw /artifacts/%s.raw", artifact.Name))
 
 	if artifact.Spec.CloudConfigRef != nil || artifact.Spec.GRUBConfig != "" {
 		cmd = fmt.Sprintf(
@@ -220,7 +227,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 
 		Command: []string{"/bin/bash", "-cxe"},
 		Args: []string{
-			cloudImgCmd,
+			cloudImgCmd.String(),
 		},
 		VolumeMounts: volumeMounts,
 	}
