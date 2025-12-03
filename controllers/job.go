@@ -157,10 +157,10 @@ func (r *OSArtifactReconciler) newArtifactPVC(artifact *osbuilder.OSArtifact) *c
 }
 
 func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder.OSArtifact) *corev1.Pod {
-	cmd := fmt.Sprintf(
-		"auroraboot --debug build-iso --override-name %s --date=false --output /artifacts dir:/rootfs",
-		artifact.Name,
-	)
+	var cmd strings.Builder
+	cmd.WriteString("auroraboot --debug build-iso")
+	cmd.WriteString(fmt.Sprintf(" --override-name %s", artifact.Name))
+	cmd.WriteString(" --date=false")
 
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -201,11 +201,9 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 	cloudImgCmd.WriteString(fmt.Sprintf(" && mv /artifacts/*.raw /artifacts/%s.raw", artifact.Name))
 
 	if artifact.Spec.CloudConfigRef != nil || artifact.Spec.GRUBConfig != "" {
-		cmd = fmt.Sprintf(
-			"auroraboot --debug build-iso --override-name %s --date=false --cloud-config /cloud-config.yaml --output /artifacts dir:/rootfs",
-			artifact.Name,
-		)
+		cmd.WriteString(" --cloud-config /cloud-config.yaml")
 	}
+	cmd.WriteString(" --output /artifacts dir:/rootfs")
 
 	buildIsoContainer := corev1.Container{
 		ImagePullPolicy: corev1.PullAlways,
@@ -214,7 +212,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		Image:           r.ToolImage,
 		Command:         []string{"/bin/bash", "-cxe"},
 		Args: []string{
-			cmd,
+			cmd.String(),
 		},
 		VolumeMounts: volumeMounts,
 	}
