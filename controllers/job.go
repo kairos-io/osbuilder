@@ -202,7 +202,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 
 	if artifact.Spec.CloudConfigRef != nil || artifact.Spec.GRUBConfig != "" {
 		cmd = fmt.Sprintf(
-			"auroraboot --debug build-iso --override-name %s --date=false --overlay-iso /iso/iso-overlay --output /artifacts dir:/rootfs",
+			"auroraboot --debug build-iso --override-name %s --date=false --cloud-config /cloud-config.yaml --output /artifacts dir:/rootfs",
 			artifact.Name,
 		)
 	}
