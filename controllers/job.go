@@ -237,6 +237,12 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		}}
 	}
 
+	var netbootCmd strings.Builder
+	netbootCmd.WriteString("auroraboot --debug netboot")
+	netbootCmd.WriteString(fmt.Sprintf(" /artifacts/%s.iso", artifact.Name))
+	netbootCmd.WriteString(" /artifacts")
+	netbootCmd.WriteString(fmt.Sprintf(" %s", artifact.Name))
+
 	extractNetboot := corev1.Container{
 		ImagePullPolicy: corev1.PullAlways,
 		SecurityContext: &corev1.SecurityContext{Privileged: ptr(true)},
@@ -248,11 +254,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 			Value: artifact.Spec.NetbootURL,
 		}},
 		Args: []string{
-			fmt.Sprintf(
-				"auroraboot --debug netboot /artifacts/%s.iso /artifacts %s",
-				artifact.Name,
-				artifact.Name,
-			),
+			netbootCmd.String(),
 		},
 		VolumeMounts: volumeMounts,
 	}
