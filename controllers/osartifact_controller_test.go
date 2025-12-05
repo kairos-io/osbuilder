@@ -195,7 +195,7 @@ var _ = Describe("OSArtifactReconciler", func() {
 				Expect(cloudImageContainer.Args[0]).To(ContainSubstring("auroraboot --debug --set 'disk.raw=true'"))
 				Expect(cloudImageContainer.Args[0]).To(ContainSubstring("--set 'state_dir=/artifacts'"))
 				Expect(cloudImageContainer.Args[0]).To(ContainSubstring("dir:/rootfs"))
-				Expect(cloudImageContainer.Args[0]).To(ContainSubstring(fmt.Sprintf("mv /artifacts/*.raw /artifacts/%s.raw", artifact.Name)))
+				Expect(cloudImageContainer.Args[0]).To(ContainSubstring(fmt.Sprintf("file=$(ls /artifacts/*.raw 2>/dev/null | head -n1) && [ -n \"$file\" ] && mv \"$file\" /artifacts/%s.raw", artifact.Name)))
 			})
 
 			When("CloudConfigRef is set", func() {
@@ -294,7 +294,7 @@ var _ = Describe("OSArtifactReconciler", func() {
 				Expect(azureContainer.Args[0]).To(ContainSubstring("auroraboot --debug --set 'disk.vhd=true'"))
 				Expect(azureContainer.Args[0]).To(ContainSubstring("--set 'state_dir=/artifacts'"))
 				Expect(azureContainer.Args[0]).To(ContainSubstring("dir:/rootfs"))
-				Expect(azureContainer.Args[0]).To(ContainSubstring(fmt.Sprintf("mv /artifacts/*.vhd /artifacts/%s.vhd", artifact.Name)))
+				Expect(azureContainer.Args[0]).To(ContainSubstring(fmt.Sprintf("file=$(ls /artifacts/*.vhd 2>/dev/null | head -n1) && [ -n \"$file\" ] && mv \"$file\" /artifacts/%s.vhd", artifact.Name)))
 			})
 
 			When("CloudConfigRef is set", func() {
@@ -363,7 +363,7 @@ var _ = Describe("OSArtifactReconciler", func() {
 				Expect(gceContainer.Args[0]).To(ContainSubstring("auroraboot --debug --set 'disk.gce=true'"))
 				Expect(gceContainer.Args[0]).To(ContainSubstring("--set 'state_dir=/artifacts'"))
 				Expect(gceContainer.Args[0]).To(ContainSubstring("dir:/rootfs"))
-				Expect(gceContainer.Args[0]).To(ContainSubstring(fmt.Sprintf("mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz", artifact.Name)))
+				Expect(gceContainer.Args[0]).To(ContainSubstring(fmt.Sprintf("file=$(ls /artifacts/*.raw.gce.tar.gz 2>/dev/null | head -n1) && [ -n \"$file\" ] && mv \"$file\" /artifacts/%s.gce.tar.gz", artifact.Name)))
 			})
 
 			When("CloudConfigRef is set", func() {

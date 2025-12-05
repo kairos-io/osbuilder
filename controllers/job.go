@@ -198,7 +198,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		cloudImgCmd.WriteString(" --cloud-config /cloud-config.yaml")
 	}
 
-	cloudImgCmd.WriteString(fmt.Sprintf(" && mv /artifacts/*.raw /artifacts/%s.raw", artifact.Name))
+	cloudImgCmd.WriteString(fmt.Sprintf(" && file=$(ls /artifacts/*.raw 2>/dev/null | head -n1) && [ -n \"$file\" ] && mv \"$file\" /artifacts/%s.raw", artifact.Name))
 
 	if artifact.Spec.CloudConfigRef != nil || artifact.Spec.GRUBConfig != "" {
 		cmd.WriteString(" --cloud-config /cloud-config.yaml")
@@ -271,7 +271,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		azureCmd.WriteString(" --cloud-config /cloud-config.yaml")
 	}
 
-	azureCmd.WriteString(fmt.Sprintf(" && mv /artifacts/*.vhd /artifacts/%s.vhd", artifact.Name))
+	azureCmd.WriteString(fmt.Sprintf(" && file=$(ls /artifacts/*.vhd 2>/dev/null | head -n1) && [ -n \"$file\" ] && mv \"$file\" /artifacts/%s.vhd", artifact.Name))
 	buildAzureCloudImageContainer := corev1.Container{
 		ImagePullPolicy: corev1.PullAlways,
 		SecurityContext: &corev1.SecurityContext{Privileged: ptr(true)},
@@ -296,7 +296,7 @@ func (r *OSArtifactReconciler) newBuilderPod(pvcName string, artifact *osbuilder
 		gceCmd.WriteString(" --cloud-config /cloud-config.yaml")
 	}
 
-	gceCmd.WriteString(fmt.Sprintf(" && mv /artifacts/*.raw.gce.tar.gz /artifacts/%s.gce.tar.gz", artifact.Name))
+	gceCmd.WriteString(fmt.Sprintf(" && file=$(ls /artifacts/*.raw.gce.tar.gz 2>/dev/null | head -n1) && [ -n \"$file\" ] && mv \"$file\" /artifacts/%s.gce.tar.gz", artifact.Name))
 	buildGCECloudImageContainer := corev1.Container{
 		ImagePullPolicy: corev1.PullAlways,
 		SecurityContext: &corev1.SecurityContext{Privileged: ptr(true)},
