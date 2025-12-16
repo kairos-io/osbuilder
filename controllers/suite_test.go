@@ -21,10 +21,12 @@ import (
 	"math/rand"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -73,7 +75,6 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
-
 })
 
 var _ = AfterSuite(func() {
@@ -100,10 +101,27 @@ func createRandomNamespace(clientset *kubernetes.Clientset) string {
 	}, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
 
+	// Create default service account to avoid pod creation errors
+	_, err = clientset.CoreV1().ServiceAccounts(name).Create(context.Background(), &v1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: name,
+		},
+	}, metav1.CreateOptions{})
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		Expect(err).ToNot(HaveOccurred())
+	}
+
 	return name
 }
 
 func deleteNamepace(clientset *kubernetes.Clientset, name string) {
 	err := clientset.CoreV1().Namespaces().Delete(context.Background(), name, metav1.DeleteOptions{})
 	Expect(err).ToNot(HaveOccurred())
+
+	// Wait for the namespace to be fully deleted to ensure clean test isolation
+	Eventually(func() bool {
+		_, err := clientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
+		return apierrors.IsNotFound(err)
+	}, 2*time.Minute, 1*time.Second).Should(BeTrue(), "namespace should be deleted")
 }

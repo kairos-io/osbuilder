@@ -128,6 +128,14 @@ func (r *OSArtifactReconciler) createPVC(ctx context.Context, artifact *osbuilde
 		return pvc, err
 	}
 	if err := r.Create(ctx, pvc); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			// PVC already exists, fetch and return it
+			existingPVC := &corev1.PersistentVolumeClaim{}
+			if err := r.Get(ctx, client.ObjectKeyFromObject(pvc), existingPVC); err != nil {
+				return pvc, err
+			}
+			return existingPVC, nil
+		}
 		return pvc, err
 	}
 
