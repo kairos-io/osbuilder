@@ -1,3 +1,5 @@
+:exclamation: This repository has been archived because [osbuilder is now part of the Kairos operator](https://github.com/kairos-io/kairos/issues/3871). Development will continue there.
+
 <h1 align="center">
   <br>
      <img width="184" alt="kairos-white-column 5bc2fe34" src="https://user-images.githubusercontent.com/2420543/193010398-72d4ba6e-7efe-4c2e-b7ba-d3a826a55b7d.png"><br>
